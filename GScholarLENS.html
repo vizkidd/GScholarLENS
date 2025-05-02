@@ -272,134 +272,145 @@
 
     <section class="feature-section">
         <h2>Usage</h2>
-        <p>After installing the extension, visit a Google Scholar profile page and click on the "Run GScholarLENS" button
+        <p>After installing the extension, visit a Google Scholar profile page and click on the "Run GScholarLENS"
+            button
             beneath the profile header. Once the data is scraped the plots are generated and the data can be downloaded
-            as a TSV. Click the "Run GScholarLENS" button below to get more information about how GScholarLENS works. </p>
+            as a TSV. Click the "Run GScholarLENS" button below to get more information about how GScholarLENS works.
+        </p>
         <span id="scholarlens-button"></span>
         <span id="download-button"></span>
     </section>
 
-<div id="website_body" style="display: none; border: 2px solid black; margin: 20px; padding: 15px;
+    <div id="website_body" style="display: block; border: 2px solid black; margin: 20px; padding: 15px;
 ">
-    <section class="feature-section">
-        <h3>Author Role Calculation</h3>
-        <p>GScholarLENS classifies author contributions into four categories:</p>
-        <ul>
-            <li><strong>First Author</strong>: The primary contributor, typically the first listed author.</li>
-            <li><strong>Second Author</strong>: The second listed contributor.</li>
-            <li><strong>Co-Author</strong>: Authors listed after the second author, excluding the last/corresponding
-                author.</li>
-            <li><strong>Corresponding Author</strong>: The main contact for the publication, usually marked with an
-                asterisk
-                (*) or placed last.</li>
-        </ul>
-        <p>Authors marked with caret(^) share the same position in the list.</p>
-        <p>Using custom regular expressions, GScholarLENS filters author names based on their position in the author list
-            and
-            specific markers (like `*` or `^`). If the author's name contains multiple spellings or abbreviations,
-            GScholarLENS fetches additional data for clarity.</p>
-    </section>
+        <section class="feature-section">
+            <h3>Author Role Calculation</h3>
+            <p>GScholarLENS classifies author contributions into four categories:</p>
+            <ul>
+                <li><strong>First Author</strong>: The primary contributor, typically the first listed author.</li>
+                <li><strong>Second Author</strong>: The second listed contributor.</li>
+                <li><strong>Co-Author</strong>: Authors listed after the second author, excluding the last/corresponding
+                    author.</li>
+                <li><strong>Corresponding Author</strong>: The main contact for the publication, usually marked with an
+                    asterisk
+                    (*) or placed last.</li>
+            </ul>
+            <p>Authors marked with caret(^) share the same position in the list.</p>
+            <p>Using custom regular expressions, GScholarLENS filters author names based on their position in the author
+                list
+                and
+                specific markers (like `*` or `^`). If the author's name contains multiple spellings or abbreviations,
+                GScholarLENS fetches additional data for clarity.</p>
+        </section>
 
-    <section class="feature-section">
-        <h2>Visualizing Author Contributions</h2>
-        <p>GScholarLENS generates plots using Chart.js, to provide a visual summary of author contributions and their
-            impact on research.</p>
-    </section>
+        <section class="feature-section">
+            <h2>Visualizing Author Contributions</h2>
+            <p>GScholarLENS generates plots using Chart.js, to provide a visual summary of author contributions and
+                their
+                impact on research.</p>
+        </section>
 
-    
-    <section class="feature-section">
-        <h3>Publication Count based on Authorship with Journal Rank Categorization</h3>
-        <p> A Stacked Bar chart is used to visualize contributions by author positions from all the listed publications.
-            Journals in the
-            field of biology, bioinformatics and biotechnology majorly consider the author positions to be a direct
-            measure of
-            their contribution in a publication. Each stacked bar in the chart displays the total counts for each role
-            and each stacked section displays the counts of available journal ranks:</p>
-        <ul>
-            <li><strong>First Author</strong>: Count of publications where the author is listed first.</li>
-            <li><strong>Second Author</strong>: Count where the author is the second contributor.</li>
-            <li><strong>Co-Author</strong>: Publications where the author is listed between the second position and the
-                last position.</li>
-            <li><strong>Corresponding Author</strong>: Publications where the author is either marked as the main
-                contact
-                (with `*`) or listed last.</li>
-        </ul>
-    </section>
 
-    <canvas id="qScorePosStackedChart"></canvas>
+        <section class="feature-section">
+            <h3>Publication Count based on Authorship with Journal Rank Categorization</h3>
+            <p> A Stacked Bar chart is used to visualize contributions by author positions from all the listed
+                publications.
+                Journals in the
+                field of biology, bioinformatics and biotechnology majorly consider the author positions to be a direct
+                measure of
+                their contribution in a publication. Each stacked bar in the chart displays the total counts for each
+                role
+                and each stacked section displays the counts of available journal ranks:</p>
+            <ul>
+                <li><strong>First Author</strong>: Count of publications where the author is listed first.</li>
+                <li><strong>Second Author</strong>: Count where the author is the second contributor.</li>
+                <li><strong>Co-Author</strong>: Publications where the author is listed between the second position and
+                    the
+                    last position.</li>
+                <li><strong>Corresponding Author</strong>: Publications where the author is either marked as the main
+                    contact
+                    (with `*`) or listed last.</li>
+            </ul>
+        </section>
 
-    <section class="feature-section">
-        <h3>Citation Count based on Authorship with Journal Rank Categorization</h3>
-        <p>Available citation counts for each publication are collected and categorized by author positions to
-            understand the impact of publications based on author contributions. Each authorship class is sectioned
-            based on the Q* rank of the publishing journal. This helps visualize how the publications have impacted
-            research based on the authors contribution alongside the quality of the journals that they have published
-            in.</p>
-    </section>
+        <canvas id="qScorePosStackedChart"></canvas>
 
-    <canvas id="authorCitationsChart"></canvas>
+        <section class="feature-section">
+            <h3>Citation Count based on Authorship with Journal Rank Categorization</h3>
+            <p>Available citation counts for each publication are collected and categorized by author positions to
+                understand the impact of publications based on author contributions. Each authorship class is sectioned
+                based on the Q* rank of the publishing journal. This helps visualize how the publications have impacted
+                research based on the authors contribution alongside the quality of the journals that they have
+                published
+                in.</p>
+        </section>
 
-    <section class="feature-section">
-        <h3>Distribution of Citations based on Authorship - Log Scale Violin Plot</h3>
-        <p> Distribution of citations in each authorship class is visualized using a violinplot. This chart gives
-            insights on how the citations for publications are distributed in each authorship category.</p>
-    </section>
+        <canvas id="authorCitationsChart"></canvas>
 
-    <canvas id="authorCitationsDistChart"></canvas>
+        <section class="feature-section">
+            <h3>Distribution of Citations based on Authorship - Log Scale Violin Plot</h3>
+            <p> Distribution of citations in each authorship class is visualized using a violinplot. This chart gives
+                insights on how the citations for publications are distributed in each authorship category.</p>
+        </section>
 
-    <section class="feature-section">
-        <h3>Author Contribution in % based on Authorship</h3>
-        <p>A stacked bar plot is used to visualize the contributions per authorship for all the publications considered.
-            Some publications might be omitted due to missing or escaped author information. In such cases the total
-            contribution would not add up to 100%.</p>
-    </section>
+        <canvas id="authorCitationsDistChart"></canvas>
 
-    <div style="width: 100%; height: 10%;">
-        <canvas id="authorStackedChart"></canvas>
-    </div>
+        <section class="feature-section">
+            <h3>Author Contribution in % based on Authorship</h3>
+            <p>A stacked bar plot is used to visualize the contributions per authorship for all the publications
+                considered.
+                Some publications might be omitted due to missing or escaped author information. In such cases the total
+                contribution would not add up to 100%.</p>
+        </section>
 
-    <section class="feature-section">
-        <h3>Citation Contribution in % based on Authorship</h3>
-        <p>A stacked bar plot is displays citations per authorship in percentages out of total citation count.</p>
-    </section>
+        <div style="width: 100%; height: 10%;">
+            <canvas id="authorStackedChart"></canvas>
+        </div>
 
-    <div style="width: 100%; height: 10%;">
-        <canvas id="citationsStackedChart"></canvas>
-    </div>
+        <section class="feature-section">
+            <h3>Citation Contribution in % based on Authorship</h3>
+            <p>A stacked bar plot is displays citations per authorship in percentages out of total citation count.</p>
+        </section>
 
-    <section class="feature-section">
-        <h2>Sh-Index</h2>
-        <p>Sh-Index is an adjusted version of h-index, that is normalized to the citation contributions, per authorship
-            position. H-indices are calculated for each auth position individually by adjusting citations with weights.
-            Finally Sh-Index is calculated using the weight adjusted citations. </p>
-    </section>
+        <div style="width: 100%; height: 10%;">
+            <canvas id="citationsStackedChart"></canvas>
+        </div>
 
-    <div style="text-align: center;">
-        <div class="sharma_index_container">
-            <h2 id="sh_index">Sh-Index : ${shIndex}</h2>
+        <section class="feature-section">
+            <h2>Sh-Index</h2>
+            <p>Sh-Index is an adjusted version of h-index, that is normalized to the citation contributions, per
+                authorship
+                position. H-indices are calculated for each auth position individually by adjusting citations with
+                weights.
+                Finally Sh-Index is calculated using the weight adjusted citations. </p>
+        </section>
+
+        <div style="text-align: center;">
+            <div class="sharma_index_container">
+                <h2 id="sh_index">Sh-Index : ${shIndex}</h2>
+            </div>
+        </div>
+        <div class="sh_table_container">
+            <table style="width: 100%;">
+                <tr>
+                    <th style="text-align: center; padding: 8px 0;">H<sub>First</sub> - First Author</th>
+
+                    <th style="text-align: center; padding: 8px 0;">H<sub>Second</sub>- Second Author</th>
+
+                    <th style="text-align: center;">H<sub>Other</sub> - Co Author</th>
+
+                    <th style="text-align: center; padding: 8px 0;">H<sub>Co</sub> - Corresponding Author</th>
+
+                </tr>
+                <tr>
+                    <td id="h_first" style="text-align: center;">${hFirst}</td>
+                    <td id="h_second" style="text-align: center;">${hSecond}</td>
+                    <td id="h_other" style="text-align: center;">${hOther}</td>
+                    <td id="h_co" style="text-align: center;">${hCO}</td>
+                </tr>
+            </table>
         </div>
     </div>
-    <div class="sh_table_container">
-        <table style="width: 100%;">
-            <tr>
-                <th style="text-align: center; padding: 8px 0;">H<sub>First</sub> - First Author</th>
-
-                <th style="text-align: center; padding: 8px 0;">H<sub>Second</sub>- Second Author</th>
-
-                <th style="text-align: center;">H<sub>Other</sub> - Co Author</th>
-
-                <th style="text-align: center; padding: 8px 0;">H<sub>Co</sub> - Corresponding Author</th>
-
-            </tr>
-            <tr>
-                <td id="h_first" style="text-align: center;">${hFirst}</td>
-                <td id="h_second" style="text-align: center;">${hSecond}</td>
-                <td id="h_other" style="text-align: center;">${hOther}</td>
-                <td id="h_co" style="text-align: center;">${hCO}</td>
-            </tr>
-        </table>
-    </div>
-</div>
 
     <section class="feature-section">
         <h2>Technical Information</h2>
@@ -425,8 +436,9 @@
     <h2>Contributions</h2>
     <a>This extension is a collaborative effort of <a href="https://github.com/vizkidd/" target="_blank">Vishvesh
             Karthik</a> (Junior Research Fellow), <a href="https://github.com/sishirhero1" target="_blank">Indupalli
-            Sishir Anand</a> (BTech-BT&BI Student), <a href="https://github.com/" target="_blank">Utkarsha Mahanta</a> (PhD Student) and Dr. Gaurav Sharma from <a
-            href="https://sites.google.com/view/sharmaglab/Home" target="_blank">SharmaG_omics Lab@IITHyderabad</a>. We
+            Sishir Anand</a> (BTech-BT&BI Student), <a href="https://github.com/" target="_blank">Utkarsha Mahanta</a>
+        (PhD Student) and Dr. Gaurav Sharma from <a href="https://sites.google.com/view/sharmaglab/Home"
+            target="_blank">SharmaG_omics Lab@IITHyderabad</a>. We
         would like to acknowledge the support and guidance of <a href="https://krc.iith.ac.in/" target="_blank">IITH
             KRC</a>.</p>
 
