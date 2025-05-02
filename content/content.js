@@ -8,7 +8,7 @@ let profileScraped = false;
 
 // Create TSV content
 let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
-                
+
 // Add the font to the document once it's loaded
 schibsted_grotesk.load().then((loadedFont) => {
     document.fonts.add(loadedFont);
@@ -52,12 +52,12 @@ chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
 
     (async function () {
         const currentTabURL = window.location.href.toString();
-        const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch=true);
+        const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
         if (captchaTest.status != 200) {
             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
                 console.log(release_response.status);  // Should log "Semaphore released" 
                 window.location.reload();
-        });
+            });
         }
         // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
         excelData = await getJCRExcel();
@@ -67,7 +67,7 @@ chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
     })();
 });
 
-function enableButton(){
+function enableButton() {
     const button = document.getElementById("inject-content-button");
     button.textContent = "Run GScholarLENS";
     button.disabled = false;
@@ -105,24 +105,24 @@ function enableButton(){
 //Credit : https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
 const cyrb53 = (str, seed = 0) => {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for(let i = 0, ch; i < str.length; i++) {
+    for (let i = 0, ch; i < str.length; i++) {
         ch = str.charCodeAt(i);
         h1 = Math.imul(h1 ^ ch, 2654435761);
         h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    h1  = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  
+
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 };
 
 async function fetchWithSessionCache(key, url, refetch = false) {
-    
+
     if (!key || key.length === 0) {
         // console.warn("Empty Cache key");
-        return null;   
+        return null;
     }
 
     const hash_key = cyrb53(key);
@@ -139,9 +139,9 @@ async function fetchWithSessionCache(key, url, refetch = false) {
         // const data = await response.json();
         // sessionStorage.setItem(key, JSON.stringify(data)); // Save to sessionStorage
         // return data;
-        if(response && response.status == 200){
+        if (response && response.status == 200) {
             await sessionStorage.setItem(hash_key, response); // Save to sessionStorage
-        } 
+        }
         return response;
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -171,33 +171,33 @@ function getRandomInt(min, max) {
 }
 
 const replaceSpecialChars = (str) => {
-  const charMap = {
-    'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a', 'æ': 'ae', 'ā': 'a', 
-    'ç': 'c', 'ć': 'c', 'ĉ': 'c', 'č': 'c', 'ç': 'c', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-    'ē': 'e', 'ė': 'e', 'ę': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i', 
-    'į': 'i', 'ı': 'i', 'ñ': 'n', 'ń': 'n', 'ň': 'n', 'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 
-    'ö': 'o', 'ø': 'o', 'ō': 'o', 'ó': 'o', 'œ': 'oe', 'ù': 'u', 'ú': 'u', 'û': 'u', 
-    'ü': 'u', 'ū': 'u', 'ý': 'y', 'ÿ': 'y', 'ž': 'z', 'ź': 'z', 'ż': 'z',
-    'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A', 'Å': 'A', 'Æ': 'AE', 'Ā': 'A',
-    'Ç': 'C', 'Ć': 'C', 'Ĉ': 'C', 'Č': 'C', 'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
-    'Ē': 'E', 'Ė': 'E', 'Ę': 'E', 'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I', 'Ī': 'I', 
-    'Į': 'I', 'İ': 'I', 'Ñ': 'N', 'Ń': 'N', 'Ň': 'N', 'Ò': 'O', 'Ó': 'O', 'Ô': 'O',
-    'Õ': 'O', 'Ö': 'O', 'Ø': 'O', 'Ō': 'O', 'Œ': 'OE', 'Ù': 'U', 'Ú': 'U', 'Û': 'U',
-    'Ü': 'U', 'Ū': 'U', 'Ý': 'Y', 'Ÿ': 'Y', 'Ž': 'Z', 'Ź': 'Z', 'Ż': 'Z', 'œ': 'oe', 
-    'ř': 'r', 'š': 's', 'ţ': 't', 'ū': 'u', 'ý': 'y'
-  };
+    const charMap = {
+        'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a', 'æ': 'ae', 'ā': 'a',
+        'ç': 'c', 'ć': 'c', 'ĉ': 'c', 'č': 'c', 'ç': 'c', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+        'ē': 'e', 'ė': 'e', 'ę': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i',
+        'į': 'i', 'ı': 'i', 'ñ': 'n', 'ń': 'n', 'ň': 'n', 'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o',
+        'ö': 'o', 'ø': 'o', 'ō': 'o', 'ó': 'o', 'œ': 'oe', 'ù': 'u', 'ú': 'u', 'û': 'u',
+        'ü': 'u', 'ū': 'u', 'ý': 'y', 'ÿ': 'y', 'ž': 'z', 'ź': 'z', 'ż': 'z',
+        'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A', 'Å': 'A', 'Æ': 'AE', 'Ā': 'A',
+        'Ç': 'C', 'Ć': 'C', 'Ĉ': 'C', 'Č': 'C', 'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
+        'Ē': 'E', 'Ė': 'E', 'Ę': 'E', 'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I', 'Ī': 'I',
+        'Į': 'I', 'İ': 'I', 'Ñ': 'N', 'Ń': 'N', 'Ň': 'N', 'Ò': 'O', 'Ó': 'O', 'Ô': 'O',
+        'Õ': 'O', 'Ö': 'O', 'Ø': 'O', 'Ō': 'O', 'Œ': 'OE', 'Ù': 'U', 'Ú': 'U', 'Û': 'U',
+        'Ü': 'U', 'Ū': 'U', 'Ý': 'Y', 'Ÿ': 'Y', 'Ž': 'Z', 'Ź': 'Z', 'Ż': 'Z', 'œ': 'oe',
+        'ř': 'r', 'š': 's', 'ţ': 't', 'ū': 'u', 'ý': 'y'
+    };
 
-  return str.split('').map(char => charMap[char] || char).join('').replace(/[\u2010-\u2015\u2212\uFE58\u2043]/g, '-');
+    return str.split('').map(char => charMap[char] || char).join('').replace(/[\u2010-\u2015\u2212\uFE58\u2043]/g, '-');
 };
 
 const normalizeString = (str) => {
-  // Normalize the string to decomposed form (NFD), where characters with accents are split into their base character and combining mark.
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+    // Normalize the string to decomposed form (NFD), where characters with accents are split into their base character and combining mark.
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
 };
 
 const matchStrings = (str1, str2) => {
-  // Normalize both strings and compare
-  return normalizeString(str1) === normalizeString(str2);
+    // Normalize both strings and compare
+    return normalizeString(str1) === normalizeString(str2);
 };
 
 function uniq(a) {
@@ -206,17 +206,17 @@ function uniq(a) {
 
 async function getJCRExcel() {
     // await new Promise(resolve => setTimeout(resolve, 1000));  // 1-second delay
-    try{
+    try {
         // chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
         //     console.log(response.status);  // Should log "Semaphore released" 
         //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
         //         console.log(response.status);  // Should log "Semaphore released" 
         //     });
-            return new Promise(resolve => {
-                chrome.storage.local.get("jcrJSON", (result) => {
-                    resolve(result.jcrJSON || false);
-                });
+        return new Promise(resolve => {
+            chrome.storage.local.get("jcrJSON", (result) => {
+                resolve(result.jcrJSON || false);
             });
+        });
         // });
     }
     catch (error) {
@@ -228,34 +228,34 @@ async function getJCRExcel() {
 }
 
 async function getRetractionWatchDB() {
-    try{
-            return new Promise(resolve => {
-                chrome.storage.local.get("retractionwatchdb", (result) => {
-                    resolve(result.retractionwatchdb || false);
-                });
+    try {
+        return new Promise(resolve => {
+            chrome.storage.local.get("retractionwatchdb", (result) => {
+                resolve(result.retractionwatchdb || false);
+            });
         });
-        
-    //     return new Promise((resolve) => {
-    //     chrome.storage.local.get("retractionwatchdb", (result) => {
-    //         const base64Data = result.retractionwatchdb;
-    //         if (!base64Data) {
-    //             resolve(false); // No data found
-    //             return;
-    //         }
 
-    //         // Convert Base64 string back to Blob
-    //         const byteString = atob(base64Data.split(",")[1]);
-    //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
-    //         const ab = new ArrayBuffer(byteString.length);
-    //         const ia = new Uint8Array(ab);
+        //     return new Promise((resolve) => {
+        //     chrome.storage.local.get("retractionwatchdb", (result) => {
+        //         const base64Data = result.retractionwatchdb;
+        //         if (!base64Data) {
+        //             resolve(false); // No data found
+        //             return;
+        //         }
 
-    //         for (let i = 0; i < byteString.length; i++) {
-    //             ia[i] = byteString.charCodeAt(i);
-    //         }
+        //         // Convert Base64 string back to Blob
+        //         const byteString = atob(base64Data.split(",")[1]);
+        //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
+        //         const ab = new ArrayBuffer(byteString.length);
+        //         const ia = new Uint8Array(ab);
 
-    //         resolve(new Blob([ab], { type: mimeString }));
-    //     });
-    // });
+        //         for (let i = 0; i < byteString.length; i++) {
+        //             ia[i] = byteString.charCodeAt(i);
+        //         }
+
+        //         resolve(new Blob([ab], { type: mimeString }));
+        //     });
+        // });
 
     }
     catch (error) {
@@ -312,7 +312,7 @@ function createButton() {
 
     // // Add the icon and text to the button
     // button.prepend(icon);
-    
+
     button.id = "inject-content-button";
     button.textContent = "Initializing GScholarLENS...";
     // button.textContent.color = "white";
@@ -360,14 +360,14 @@ function createButton() {
         // }
         // });
         try {
-        //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
-        //         console.log(response.status);  // Should log "Semaphore released" 
-                startScraping();
-                button.style.display = "none";
-        //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-        //             console.log(response.status);  // Should log "Semaphore released" 
-        //         });
-        //     });
+            //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
+            //         console.log(response.status);  // Should log "Semaphore released" 
+            startScraping();
+            button.style.display = "none";
+            //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            //             console.log(response.status);  // Should log "Semaphore released" 
+            //         });
+            //     });
         }
         catch (error) {
             console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
@@ -376,7 +376,7 @@ function createButton() {
                 console.log(response.status);  // Should log "Semaphore released" 
             });
         }
-        
+
     }, { passive: true });
 }
 
@@ -422,12 +422,12 @@ function startScraping() {
 
         // Additionally, listen for window focus events
         window.addEventListener('focus', () => {
-            if(profileScraped === true){
+            if (profileScraped === true) {
                 // draw10yearsChart();
                 updateAuthorChart();
             }
         });
-        
+
         window.addEventListener('unload', () => {
             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
                 console.log(response.status);  // Should log "Semaphore released" 
@@ -454,12 +454,12 @@ function startScraping() {
         let pub_author_no_match = 0;
 
         let hFirst = 0;
-        let hSecond=0;
-        let hOther=0;
+        let hSecond = 0;
+        let hOther = 0;
         let hCO = 0;
         let shIndex = 0;
         let shIndexPubCount = 0;
-        
+
         let medianCitationsRaw = 0;
         let medianCitationsAdj = 0;
         let zeroCitationPubs = 0;
@@ -475,9 +475,9 @@ function startScraping() {
         // const hIndexMinCiteArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
         const subsetItersArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
         // const subsetRowCountsArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-        
+
         const journalCountMap = new Map();
-        
+
         /*     
         
         ^ : Start of the string.
@@ -508,58 +508,58 @@ function startScraping() {
         // let correspondingAuthorPercentage = 0;
         // let coAuthorPercentage = 0;
 
-// Define reusable colors
-            const backgroundColor = [
-                'rgba(75, 192, 192, 0.2)',
-                'rgba(153, 102, 255, 0.2)',
-                'rgba(255, 159, 64, 0.2)',
-                'rgba(54, 162, 235, 0.2)'
-            ];
-            const borderColor = [
-                'rgba(75, 192, 192, 1)',
-                'rgba(153, 102, 255, 1)',
-                'rgba(255, 159, 64, 1)',
-                'rgba(54, 162, 235, 1)'
-            ];
+        // Define reusable colors
+        const backgroundColor = [
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(54, 162, 235, 0.2)'
+        ];
+        const borderColor = [
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(54, 162, 235, 1)'
+        ];
 
-            const QbackgroundColor = [
-                ['rgba(166, 54, 3, 0.4)', 'rgba(84, 39, 143, 0.4)', 'rgba(0, 109, 44, 0.4)', 'rgba(8, 81, 156, 0.4)'],
-                ['rgba(230, 85, 13, 0.4)', 'rgba(117, 107, 177, 0.4)', 'rgba(49, 163, 84, 0.4)', 'rgba(49, 130, 189,0.4)'],
-                ['rgba(253, 141, 60, 0.4)', 'rgba(158, 154, 200, 0.4)', 'rgba(116, 196, 118, 0.4)', 'rgba(107, 174, 214, 0.4)'],
-                ['rgba(253, 190, 133, 0.4)', 'rgba(203, 201, 226, 0.4)', 'rgba(186, 228, 179, 0.4)', 'rgba(189, 215, 231, 0.4)'],
-                ['rgba(254, 237, 222, 0.4)', 'rgba(242, 240, 247, 0.4)', 'rgba(237, 248, 233, 0.4)', 'rgba(239, 243, 255, 0.4)']
-            ];
+        const QbackgroundColor = [
+            ['rgba(166, 54, 3, 0.4)', 'rgba(84, 39, 143, 0.4)', 'rgba(0, 109, 44, 0.4)', 'rgba(8, 81, 156, 0.4)'],
+            ['rgba(230, 85, 13, 0.4)', 'rgba(117, 107, 177, 0.4)', 'rgba(49, 163, 84, 0.4)', 'rgba(49, 130, 189,0.4)'],
+            ['rgba(253, 141, 60, 0.4)', 'rgba(158, 154, 200, 0.4)', 'rgba(116, 196, 118, 0.4)', 'rgba(107, 174, 214, 0.4)'],
+            ['rgba(253, 190, 133, 0.4)', 'rgba(203, 201, 226, 0.4)', 'rgba(186, 228, 179, 0.4)', 'rgba(189, 215, 231, 0.4)'],
+            ['rgba(254, 237, 222, 0.4)', 'rgba(242, 240, 247, 0.4)', 'rgba(237, 248, 233, 0.4)', 'rgba(239, 243, 255, 0.4)']
+        ];
 
-            // const QbackgroundColor = [
-            //     ['rgb(166, 54, 3)', 'rgb(84, 39, 143)', 'rgb(0, 109, 44)', 'rgb(8, 81, 156)'],
-            //     ['rgb(230, 85, 13)', 'rgb(117, 107, 177)', 'rgb(49, 163, 84)', 'rgb(49, 130, 189)'],
-            //     ['rgb(253, 141, 60)', 'rgb(158, 154, 200)', 'rgb(116, 196, 118)', 'rgb(107, 174, 214)'],
-            //     ['rgb(253, 190, 133)', 'rgb(203, 201, 226)', 'rgb(186, 228, 179)', 'rgb(189, 215, 231)'],
-            //     ['rgb(254, 237, 222)', 'rgb(242, 240, 247)', 'rgb(237, 248, 233)', 'rgb(239, 243, 255)']
-            // ];
+        // const QbackgroundColor = [
+        //     ['rgb(166, 54, 3)', 'rgb(84, 39, 143)', 'rgb(0, 109, 44)', 'rgb(8, 81, 156)'],
+        //     ['rgb(230, 85, 13)', 'rgb(117, 107, 177)', 'rgb(49, 163, 84)', 'rgb(49, 130, 189)'],
+        //     ['rgb(253, 141, 60)', 'rgb(158, 154, 200)', 'rgb(116, 196, 118)', 'rgb(107, 174, 214)'],
+        //     ['rgb(253, 190, 133)', 'rgb(203, 201, 226)', 'rgb(186, 228, 179)', 'rgb(189, 215, 231)'],
+        //     ['rgb(254, 237, 222)', 'rgb(242, 240, 247)', 'rgb(237, 248, 233)', 'rgb(239, 243, 255)']
+        // ];
 
-            const QborderColor = [
-                ['rgb(127, 44, 2)', 'rgb(58, 27, 107)', 'rgb(0, 75, 28)', 'rgb(5, 52, 105)'], // Group 1
-                ['rgb(179, 63, 11)', 'rgb(89, 79, 137)', 'rgb(38, 122, 62)', 'rgb(35, 97, 138)'], // Group 2
-                ['rgb(184, 94, 42)', 'rgb(108, 106, 148)', 'rgb(78, 139, 82)', 'rgb(73, 115, 155)'], // Group 3
-                ['rgb(194, 151, 99)', 'rgb(157, 156, 186)', 'rgb(145, 161, 135)', 'rgb(148, 173, 197)'], // Group 4
-                // ['rgb(254, 237, 222)', 'rgb(242, 240, 247)', 'rgb(237, 248, 233)', 'rgb(239, 243, 255)'] // Group NA
-                ['rgb(205, 141, 108)', 'rgb(180, 168, 207)', 'rgb(157, 208, 150)', 'rgb(150, 180, 230)'],// Group NA
-                ];
+        const QborderColor = [
+            ['rgb(127, 44, 2)', 'rgb(58, 27, 107)', 'rgb(0, 75, 28)', 'rgb(5, 52, 105)'], // Group 1
+            ['rgb(179, 63, 11)', 'rgb(89, 79, 137)', 'rgb(38, 122, 62)', 'rgb(35, 97, 138)'], // Group 2
+            ['rgb(184, 94, 42)', 'rgb(108, 106, 148)', 'rgb(78, 139, 82)', 'rgb(73, 115, 155)'], // Group 3
+            ['rgb(194, 151, 99)', 'rgb(157, 156, 186)', 'rgb(145, 161, 135)', 'rgb(148, 173, 197)'], // Group 4
+            // ['rgb(254, 237, 222)', 'rgb(242, 240, 247)', 'rgb(237, 248, 233)', 'rgb(239, 243, 255)'] // Group NA
+            ['rgb(205, 141, 108)', 'rgb(180, 168, 207)', 'rgb(157, 208, 150)', 'rgb(150, 180, 230)'],// Group NA
+        ];
 
-            // const QbackgroundColor = [
-            //     ['rgba(166, 54, 3, 0.2)', 'rgba(230, 85, 13, 0.2)', 'rgba(253, 141, 60, 0.2)', 'rgba(253, 190, 133, 0.2)'],
-            //     ['rgba(84, 39, 143, 0.2)', 'rgba(117, 107, 177, 0.2)', 'rgba(158, 154, 200, 0.2)', 'rgba(203, 201, 226, 0.2)'],
-            //     ['rgba(0, 109, 44, 0.2)', 'rgba(49, 163, 84, 0.2)', 'rgba(116, 196, 118, 0.2)', 'rgba(186, 228, 179, 0.2)'],
-            //     ['rgba(8, 81, 156, 0.2)', 'rgba(49, 130, 189,0.2)', 'rgba(107, 174, 214, 0.2)', 'rgba(189, 215, 231, 0.2)']
-            // ];
+        // const QbackgroundColor = [
+        //     ['rgba(166, 54, 3, 0.2)', 'rgba(230, 85, 13, 0.2)', 'rgba(253, 141, 60, 0.2)', 'rgba(253, 190, 133, 0.2)'],
+        //     ['rgba(84, 39, 143, 0.2)', 'rgba(117, 107, 177, 0.2)', 'rgba(158, 154, 200, 0.2)', 'rgba(203, 201, 226, 0.2)'],
+        //     ['rgba(0, 109, 44, 0.2)', 'rgba(49, 163, 84, 0.2)', 'rgba(116, 196, 118, 0.2)', 'rgba(186, 228, 179, 0.2)'],
+        //     ['rgba(8, 81, 156, 0.2)', 'rgba(49, 130, 189,0.2)', 'rgba(107, 174, 214, 0.2)', 'rgba(189, 215, 231, 0.2)']
+        // ];
 
-            // const QborderColor = [
-            //     ['rgb(127, 44, 2)', 'rgb(179, 63, 11)', 'rgb(184, 94, 42)', 'rgb(194, 151, 99)'],
-            //     ['rgb(58, 27, 107)', 'rgb(89, 79, 137)', 'rgb(108, 106, 148)', 'rgb(157, 156, 186)'],
-            //     ['rgb(0, 75, 28)', 'rgb(38, 122, 62)', 'rgb(78, 139, 82)', 'rgb(145, 161, 135)'],
-            //     ['rgb(5, 52, 105)', 'rgb(35, 97, 138)', 'rgb(73, 115, 155)', 'rgb(148, 173, 197)']
-            // ];
+        // const QborderColor = [
+        //     ['rgb(127, 44, 2)', 'rgb(179, 63, 11)', 'rgb(184, 94, 42)', 'rgb(194, 151, 99)'],
+        //     ['rgb(58, 27, 107)', 'rgb(89, 79, 137)', 'rgb(108, 106, 148)', 'rgb(157, 156, 186)'],
+        //     ['rgb(0, 75, 28)', 'rgb(38, 122, 62)', 'rgb(78, 139, 82)', 'rgb(145, 161, 135)'],
+        //     ['rgb(5, 52, 105)', 'rgb(35, 97, 138)', 'rgb(73, 115, 155)', 'rgb(148, 173, 197)']
+        // ];
 
         const chartPath = chrome.runtime.getURL('libs/chart.umd.js');
         const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
@@ -683,8 +683,8 @@ function startScraping() {
         loadingBarContainer.appendChild(loadingBar);
 
 
-        async function updateLoadingBar(progress, loadingBarText = "Progress: ", force= false, timeout = 20, step = 5) {
-            if (progress <= 0  || progress >= 100 || progress % step || force) {
+        async function updateLoadingBar(progress, loadingBarText = "Progress: ", force = false, timeout = 20, step = 5) {
+            if (progress <= 0 || progress >= 100 || progress % step || force) {
                 setTimeout(updateLoadingBarCall, timeout, progress, loadingBarText);
                 // await new Promise((updateLoadingBarCall, timeout, progress, loadingBarText) => setTimeout(updateLoadingBarCall, timeout, progress, loadingBarText));
                 await Promise.resolve();
@@ -719,108 +719,108 @@ function startScraping() {
         profileSection.appendChild(chartMainContainer);
 
         function updateDoubleRangeMin(value = -1) {
-                const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
-                const doubleRangeTrack = document.getElementById("double_range_track");
-                const doubleMinLabel = document.querySelector(".minvalue");
-                const doubleMaxLabel = document.querySelector(".maxvalue");
-                const minRange = value > 0 ? value : parseInt(doubleRangeInputs[0].value);
-                const maxRange = parseInt(doubleRangeInputs[1].value);
+            const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
+            const doubleRangeTrack = document.getElementById("double_range_track");
+            const doubleMinLabel = document.querySelector(".minvalue");
+            const doubleMaxLabel = document.querySelector(".maxvalue");
+            const minRange = value > 0 ? value : parseInt(doubleRangeInputs[0].value);
+            const maxRange = parseInt(doubleRangeInputs[1].value);
 
-                // console.log(" (min) minRange : " + minRange); //DEBUG
-                // console.log(" (min) maxRange : " + maxRange); //DEBUG
-            
-                // Adjust min/max values if they are too close (ensuring a gap between sliders)
-                if (maxRange - minRange < minRangeValueGap) {
-                    // if (event.target.className.includes("min")) {
-                        doubleRangeInputs[0].value = maxRange - minRangeValueGap;
-                    // } else {
-                        // doubleRangeInputs[1].value = minRange + minRangeValueGap;
-                    // }
-                }
+            // console.log(" (min) minRange : " + minRange); //DEBUG
+            // console.log(" (min) maxRange : " + maxRange); //DEBUG
 
-                // console.log(" (min) doubleRangeInputs[0].value : " + doubleRangeInputs[0].value); //DEBUG
-                // console.log(" (min) doubleRangeInputs[1].value : " + doubleRangeInputs[1].value); //DEBUG
-            
-                const adjustedMinRange = parseInt(doubleRangeInputs[0].value);
-                const adjustedMaxRange = parseInt(doubleRangeInputs[1].value);
+            // Adjust min/max values if they are too close (ensuring a gap between sliders)
+            if (maxRange - minRange < minRangeValueGap) {
+                // if (event.target.className.includes("min")) {
+                doubleRangeInputs[0].value = maxRange - minRangeValueGap;
+                // } else {
+                // doubleRangeInputs[1].value = minRange + minRangeValueGap;
+                // }
+            }
 
-                // Update the range track and labels dynamically
-                doubleRangeTrack.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
-                doubleRangeTrack.style.right = 100 - ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            // console.log(" (min) doubleRangeInputs[0].value : " + doubleRangeInputs[0].value); //DEBUG
+            // console.log(" (min) doubleRangeInputs[1].value : " + doubleRangeInputs[1].value); //DEBUG
 
-                doubleMinLabel.textContent = adjustedMinRange;
-                doubleMaxLabel.textContent = adjustedMaxRange;
+            const adjustedMinRange = parseInt(doubleRangeInputs[0].value);
+            const adjustedMaxRange = parseInt(doubleRangeInputs[1].value);
 
-                doubleMinLabel.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
-                doubleMaxLabel.style.left = ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            // Update the range track and labels dynamically
+            doubleRangeTrack.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            doubleRangeTrack.style.right = 100 - ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
 
-                selectedMinYear = parseInt(doubleRangeInputs[0].value); //adjustedMinRange;
-                // selectedMaxYear = adjustedMaxRange;
-                // selectedMaxYear = parseInt(doubleRangeInputs[1].value);
-                // console.log("after update : min year");
-                // console.log(selectedMinYear, selectedMaxYear); //DEBUG
+            doubleMinLabel.textContent = adjustedMinRange;
+            doubleMaxLabel.textContent = adjustedMaxRange;
+
+            doubleMinLabel.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            doubleMaxLabel.style.left = ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
+
+            selectedMinYear = parseInt(doubleRangeInputs[0].value); //adjustedMinRange;
+            // selectedMaxYear = adjustedMaxRange;
+            // selectedMaxYear = parseInt(doubleRangeInputs[1].value);
+            // console.log("after update : min year");
+            // console.log(selectedMinYear, selectedMaxYear); //DEBUG
         }
-        
-            function updateDoubleRangeMax(value = -1){
-                const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
-                const doubleRangeTrack = document.getElementById("double_range_track");
-                const doubleMinLabel = document.querySelector(".minvalue");
-                const doubleMaxLabel = document.querySelector(".maxvalue");
-                const minRange = parseInt(doubleRangeInputs[0].value);
-                const maxRange = value > 0 ? value : parseInt(doubleRangeInputs[1].value);
 
-                // console.log(" (max) minRange : " + minRange); //DEBUG
-                // console.log(" (max) maxRange : " + maxRange); //DEBUG
+        function updateDoubleRangeMax(value = -1) {
+            const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
+            const doubleRangeTrack = document.getElementById("double_range_track");
+            const doubleMinLabel = document.querySelector(".minvalue");
+            const doubleMaxLabel = document.querySelector(".maxvalue");
+            const minRange = parseInt(doubleRangeInputs[0].value);
+            const maxRange = value > 0 ? value : parseInt(doubleRangeInputs[1].value);
 
-                // Adjust min/max values if they are too close (ensuring a gap between sliders)
-                if (maxRange - minRange < minRangeValueGap) {
-                    // if (event.target.className.includes("min")) {
-                        // doubleRangeInputs[0].value = maxRange - minRangeValueGap;
-                    // } else {
-                        doubleRangeInputs[1].value = minRange + minRangeValueGap;
-                    // }
-                }
+            // console.log(" (max) minRange : " + minRange); //DEBUG
+            // console.log(" (max) maxRange : " + maxRange); //DEBUG
 
-                // console.log(" (max) doubleRangeInputs[0].value : " + doubleRangeInputs[0].value); //DEBUG
-                // console.log(" (max) doubleRangeInputs[1].value : " + doubleRangeInputs[1].value); //DEBUG
-
-                const adjustedMinRange = parseInt(doubleRangeInputs[0].value);
-                const adjustedMaxRange = parseInt(doubleRangeInputs[1].value);
-
-                // Update the range track and labels dynamically
-                doubleRangeTrack.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
-                doubleRangeTrack.style.right = 100 - ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
-
-                doubleMinLabel.textContent = adjustedMinRange;
-                doubleMaxLabel.textContent = adjustedMaxRange;
-
-                doubleMinLabel.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
-                doubleMaxLabel.style.left = ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
-
-                // selectedMinYear = parseInt(doubleRangeInputs[0].value);
-                // selectedMinYear = adjustedMinRange;
-                selectedMaxYear = parseInt(doubleRangeInputs[1].value); //adjustedMaxRange;
-                // console.log("after update : max year");
-                // console.log(selectedMinYear, selectedMaxYear); //DEBUG
+            // Adjust min/max values if they are too close (ensuring a gap between sliders)
+            if (maxRange - minRange < minRangeValueGap) {
+                // if (event.target.className.includes("min")) {
+                // doubleRangeInputs[0].value = maxRange - minRangeValueGap;
+                // } else {
+                doubleRangeInputs[1].value = minRange + minRangeValueGap;
+                // }
             }
 
-        function updateSingleRange(val = -1){
-                const singleRangeTrack = document.getElementById("single_range_track");
-                const singleRangeInput = document.getElementById("single_range");
-                const singleLabel = document.querySelector(".singlevalue");
-                const value = val > 0 ? val : parseInt(singleRangeInput.value);
+            // console.log(" (max) doubleRangeInputs[0].value : " + doubleRangeInputs[0].value); //DEBUG
+            // console.log(" (max) doubleRangeInputs[1].value : " + doubleRangeInputs[1].value); //DEBUG
 
-                // Update the range track and label dynamically
-                singleRangeTrack.style.right = 100 - ((value - minYear) / (maxYear - minYear)) * 100 + "%";
-                singleRangeTrack.style.left = "0%";
-                singleLabel.textContent = value;
-                singleLabel.style.left = ((value - minYear) / (maxYear - minYear)) * 100 + "%";
+            const adjustedMinRange = parseInt(doubleRangeInputs[0].value);
+            const adjustedMaxRange = parseInt(doubleRangeInputs[1].value);
 
-                selectedSingleYear = value;
-                // console.log("after update : single year");
-                // console.log(selectedSingleYear); //DEBUG
-            }
-        function cumulativeChecker(){
+            // Update the range track and labels dynamically
+            doubleRangeTrack.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            doubleRangeTrack.style.right = 100 - ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
+
+            doubleMinLabel.textContent = adjustedMinRange;
+            doubleMaxLabel.textContent = adjustedMaxRange;
+
+            doubleMinLabel.style.left = ((adjustedMinRange - minYear) / (maxYear - minYear)) * 100 + "%";
+            doubleMaxLabel.style.left = ((adjustedMaxRange - minYear) / (maxYear - minYear)) * 100 + "%";
+
+            // selectedMinYear = parseInt(doubleRangeInputs[0].value);
+            // selectedMinYear = adjustedMinRange;
+            selectedMaxYear = parseInt(doubleRangeInputs[1].value); //adjustedMaxRange;
+            // console.log("after update : max year");
+            // console.log(selectedMinYear, selectedMaxYear); //DEBUG
+        }
+
+        function updateSingleRange(val = -1) {
+            const singleRangeTrack = document.getElementById("single_range_track");
+            const singleRangeInput = document.getElementById("single_range");
+            const singleLabel = document.querySelector(".singlevalue");
+            const value = val > 0 ? val : parseInt(singleRangeInput.value);
+
+            // Update the range track and label dynamically
+            singleRangeTrack.style.right = 100 - ((value - minYear) / (maxYear - minYear)) * 100 + "%";
+            singleRangeTrack.style.left = "0%";
+            singleLabel.textContent = value;
+            singleLabel.style.left = ((value - minYear) / (maxYear - minYear)) * 100 + "%";
+
+            selectedSingleYear = value;
+            // console.log("after update : single year");
+            // console.log(selectedSingleYear); //DEBUG
+        }
+        function cumulativeChecker() {
             const cumulativeCheckbox = document.getElementById("cumulative_checkbox");
             const singleRangeTrack = document.getElementById("single_range_track");
             const peryearCheckbox = document.getElementById("peryear_checkbox");
@@ -836,7 +836,7 @@ function startScraping() {
             selectedCumulativeCheck = cumulativeCheckbox.checked;
             // console.log(selectedPeryearCheck); //DEBUG
         }
-        
+
         function peryearChecker() {
             const cumulativeCheckbox = document.getElementById("cumulative_checkbox");
             const cumulativeCheckboxLabel = document.querySelector('label[for="cumulative_checkbox"]');
@@ -852,7 +852,7 @@ function startScraping() {
                     cumulativeCheckbox.checked = true;
                     // selectedCumulativeCheck = true;
                     cumulativeChecker();
-                }else{
+                } else {
                     cumulativeCheckbox.checked = false;
                 }
             } else {
@@ -866,8 +866,8 @@ function startScraping() {
             selectedPeryearCheck = peryearCheckbox.checked;
             selectedCumulativeCheck = cumulativeCheckbox.checked;
             // console.log(selectedPeryearCheck); //DEBUG
-        }            
-        
+        }
+
         function initializeScholarLens() {
             //DEBUG - adding range slider for v1.0 of scholar lens
             // Create styles dynamically
@@ -1231,16 +1231,16 @@ input::-moz-range-thumb {
             `;
             document.head.appendChild(style);
             //SLIDER style - END
-            
+
             // const currentCumulativeAttr = selectedPeryearCheck ? "checked" : "";
             // const currentDRDisplay = selectedPeryearCheck ? "" : "display: none;";
             // const currentSRDisplay = selectedPeryearCheck ? "display: none;" : "";
 
             // {"borderCollapse": "separate", "cellStyles": [{ "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }, { "borderTopLeftRadius": "10px", "borderTopRightRadius": "10px", "borderBottomLeftRadius": "10px", "borderBottomRightRadius": "10px", "borderColor": "rgba(0, 0, 0, 0.3)" }]}
-        
+
             // {"firstRowCellsStyles":[{"borderTopLeftRadius":"10px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"10px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"}],"lastRowCellsStyles":[{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"10px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"10px"}]}
 
-                                    //                                <h4 id="sh_index_info">(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications</h4> 
+            //                                <h4 id="sh_index_info">(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications</h4> 
 
             const chartContainer = document.querySelector('#chart-viz');
             chartContainer.style.marginTop = "50px";
@@ -1378,7 +1378,7 @@ input::-moz-range-thumb {
             //                     <span id="considered_pubs">Publications Considered: ${totalPublications - pub_author_no_match}</span>
             //                     <br>
             //                     <span id="ignored_pubs">Publications Not Counted: ${pub_author_no_match}</span>
-            
+
             // Toggle functionality for showing/hiding double and single sliders
             const cumulativeCheckbox = document.getElementById("cumulative_checkbox");
             // const cumulativeCheckboxLabel = document.querySelector('label[for="cumulative_checkbox"]');
@@ -1399,7 +1399,7 @@ input::-moz-range-thumb {
             // const doubleMinLabel = document.querySelector(".minvalue");
             // const doubleMaxLabel = document.querySelector(".maxvalue");
             // const singleLabel = document.querySelector(".singlevalue");
-            
+
             // Functions for Double Range Slider
             // const updateDoubleRangeMin = () => {
             //     const minRange = parseInt(doubleRangeInputs[0].value);
@@ -1494,7 +1494,7 @@ input::-moz-range-thumb {
 
             // Event listener for Single Range Slider
             singleRangeInput.addEventListener("input", updateSingleRange);
-            
+
             // Initialize Single Range Slider
             // updateSingleRange();
 
@@ -1535,7 +1535,7 @@ input::-moz-range-thumb {
 
         // Append the download button to the profile section
         profileSection.appendChild(downloadDetailsButton);
-        
+
         downloadDetailsButton.addEventListener("click", function () {
             // Trigger download of the TSV file
             const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
@@ -1559,7 +1559,7 @@ input::-moz-range-thumb {
 
         // Append the download button to the profile section
         profileSection.appendChild(downloadPlotsButton);
-        
+
         downloadPlotsButton.addEventListener("click", function () {
             // Trigger download of the TSV file
             function capturePlots() {
@@ -1578,25 +1578,25 @@ input::-moz-range-thumb {
                         // link.href = url;
                         // link.download = `${authorName.replace(/\s+/g, '_')}_plots.png`; // Filename includes the author's name
                         // link.click();
-                })
-                .catch(function (error) {
-                    console.error('Error: Could not capture the plots!', error);
-                });
+                    })
+                    .catch(function (error) {
+                        console.error('Error: Could not capture the plots!', error);
+                    });
             }
 
             const dom2imagePath = chrome.runtime.getURL("libs/dom-to-image-more.min.js");
             loadScript(dom2imagePath, capturePlots);
         });
-        
 
 
-        
+
+
         const authorNameElement = document.querySelector('#gsc_prf_in');
         const authorName = authorNameElement ? authorNameElement.textContent.trim() : "Not found";
 
         function cleanNameTitles(name) {
             // Define a regular expression to match common titles and honorifics
-             const honorifics = /\b(dr|mr|mrs|ms|miss|prof|phd|ph\.?d|md|m\.?d|jr|sr)\b/gi;
+            const honorifics = /\b(dr|mr|mrs|ms|miss|prof|phd|ph\.?d|md|m\.?d|jr|sr)\b/gi;
             // Remove titles and honorifics
             let cleanedName = name.replace(honorifics, '');
 
@@ -1609,7 +1609,7 @@ input::-moz-range-thumb {
             cleanedName = cleanedName.split(/[,\.\(\;\:\[\{\*)]/)[0].trim(); //without - but with (,[,<,{
             return cleanedName;
         }
-        
+
         function getSurname(authorName) {
             // Split the trimmed name into parts
             const nameParts = authorName.split(' ');
@@ -1632,7 +1632,7 @@ input::-moz-range-thumb {
 
             // Extract the first initial from the first part and escape it
             const firstInitial = escapeRegex(nameParts[0].charAt(0));
-            if(nameParts[0].length > 1 && lastName.length > 1){
+            if (nameParts[0].length > 1 && lastName.length > 1) {
                 // Construct the regex
                 return new RegExp(`^${firstInitial}.*\\s${lastName}[\\*^]?$`, 'i');
             } else {
@@ -1729,7 +1729,7 @@ input::-moz-range-thumb {
         //  */
         // async function classifyArticleFromLink(articleUrl) {
         //     console.log(`Processing article URL: ${articleUrl}`);
-        
+
         //     // // Step 1: Fetch the DOI from the link
         //     // const doi = await fetchDOIFromLink(articleUrl);
         //     // if (!doi) {
@@ -1765,13 +1765,13 @@ input::-moz-range-thumb {
         const otherNamesDiv = document.querySelector('#gs_prf_ion_txt');
         let othreNamesStr = "";
         if (otherNamesDiv != undefined) {
-            othreNamesStr = otherNamesDiv.textContent.trim();    
+            othreNamesStr = otherNamesDiv.textContent.trim();
         }
-        
+
         let namesList = [];
         let otherNamesList = [];
         //Processing Other-Names tag
-        if(othreNamesStr.length > 0){
+        if (othreNamesStr.length > 0) {
             // Split by both `;` and `,` and trim
             let parts = othreNamesStr.split(/;|,|:/).map(part => part.trim()).filter(Boolean);
 
@@ -1824,10 +1824,10 @@ input::-moz-range-thumb {
 
         // console.log(otherNamesDiv.toString()); //DEBUG
         // console.log(othreNamesStr.toString()); //DEBUG
-        
+
         // Remove honorific titles, punctuations and normalize localization characters
         const authorNameLong = cleanNameTitles(replaceSpecialChars(normalizeString(authorNameDiv)));
-    
+
         // Get surname for short/quick name matching
         const authorNameShort = getSurname(authorNameLong);
 
@@ -1837,7 +1837,7 @@ input::-moz-range-thumb {
         //Make different combinations of author name
         function getAuthorNameCombinations(name) {
             const nameParts = name.split(" ");
-            if (nameParts.length === 1) { 
+            if (nameParts.length === 1) {
                 return [name];
             }
             else {
@@ -1849,22 +1849,22 @@ input::-moz-range-thumb {
                 const lastNamefirstInitial = `${lastName} ${firstInitial}`;
                 const lastInitialFirstName = `${lastName.charAt(0)} ${nameParts[0]}`;
                 return [firstInitialLastName, firstNameLastInitial, lastNamefirstName, lastNamefirstInitial, lastInitialFirstName];
-            } 
-            
+            }
+
             return [name];
         }
 
-// Manickam Natesan
-// Natesan Manickam - lastNamefirstName
-// M Natesan - firstInitialLastName
-// Natesan M - lastNamefirstInitial
-// Manickam N - firstNameLastInitial
-// N Manickam - lastInitialFirstName
-// M N
-// N M
+        // Manickam Natesan
+        // Natesan Manickam - lastNamefirstName
+        // M Natesan - firstInitialLastName
+        // Natesan M - lastNamefirstInitial
+        // Manickam N - firstNameLastInitial
+        // N Manickam - lastInitialFirstName
+        // M N
+        // N M
 
         const nameComboList = getAuthorNameCombinations(authorNameLong);
-        
+
         namesList.push(authorNameLong);
         namesList = [...namesList, ...nameComboList];
         namesList = [...namesList, ...otherNamesList];
@@ -1931,7 +1931,7 @@ input::-moz-range-thumb {
         //     (qPosCount.get("co_author").get(scoreType) / getQScores("co_author").reduce((a, b) => a + b, 0)) * 100,
         //     (qPosCount.get("corresponding_author").get(scoreType) / getQScores("corresponding_author").reduce((a, b) => a + b, 0)) * 100];
         // }
-        
+
         // function getQScores(authorType) {
         //     return [
         //         qPosCount.get(authorType).get("Q1"),
@@ -1960,11 +1960,11 @@ input::-moz-range-thumb {
 
         function getQScoreCitationsByYear(scoreType, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("author_pos_cite_qscore")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [
@@ -1977,11 +1977,11 @@ input::-moz-range-thumb {
 
         function getPosCitationsByYear(author_pos, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0,0];
+                return [0, 0, 0, 0, 0];
             }
 
-            if (!yearwiseData.get(year).has("author_pos_cite_qscore") ) {
-                return [0,0,0,0,0];
+            if (!yearwiseData.get(year).has("author_pos_cite_qscore")) {
+                return [0, 0, 0, 0, 0];
             }
 
             return [
@@ -2007,21 +2007,21 @@ input::-moz-range-thumb {
             if (!yearwiseData.get(year).has("author_pos_cite_qscore")) {
                 return (0);
             }
-            
+
             return (yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("Q1") +
                 yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("Q2") +
                 yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("Q3") +
                 yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("Q4") +
-                yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("NA") );
+                yearwiseData.get(year).get("author_pos_cite_qscore").get(author_pos).get("NA"));
         }
 
         function getPosQScoresByYear(scoreType, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("qPosCount")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [
@@ -2034,11 +2034,11 @@ input::-moz-range-thumb {
 
         function getPosQScorePercentagesByYear(scoreType, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("qPosCount")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [(yearwiseData.get(year).get("qPosCount").get("first_author").get(scoreType) / getQScoresByYear("first_author", year).reduce((a, b) => a + b, 0)) * 100,
@@ -2046,14 +2046,14 @@ input::-moz-range-thumb {
             (yearwiseData.get(year).get("qPosCount").get("co_author").get(scoreType) / getQScoresByYear("co_author", year).reduce((a, b) => a + b, 0)) * 100,
             (yearwiseData.get(year).get("qPosCount").get("corresponding_author").get(scoreType) / getQScoresByYear("corresponding_author", year).reduce((a, b) => a + b, 0)) * 100];
         }
-        
+
         function getQScoresByYear(authorType, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0,0];
+                return [0, 0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("qPosCount")) {
-                return [0,0,0,0,0];
+                return [0, 0, 0, 0, 0];
             }
 
             return [
@@ -2078,24 +2078,24 @@ input::-moz-range-thumb {
                 yearwiseData.get(year).get("qPosCount").get(authorType).get("Q2") +
                 yearwiseData.get(year).get("qPosCount").get(authorType).get("Q3") +
                 yearwiseData.get(year).get("qPosCount").get(authorType).get("Q4") +
-                yearwiseData.get(year).get("qPosCount").get(authorType).get("NA") );
+                yearwiseData.get(year).get("qPosCount").get(authorType).get("NA"));
         }
 
         function getQScorePercentagesByYear(authorType, year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0,0];
+                return [0, 0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("qPosCount")) {
-                return [0,0,0,0,0];
+                return [0, 0, 0, 0, 0];
             }
 
             return [(yearwiseData.get(year).get("qPosCount").get(authorType).get("Q1") / yearwiseData.get(year).get("qTotal").get("Q1")) * 100,
-                (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q2") / yearwiseData.get(year).get("qTotal").get("Q2")) * 100,
-                (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q3") / yearwiseData.get(year).get("qTotal").get("Q3")) * 100,
-                (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q4") / yearwiseData.get(year).get("qTotal").get("Q4")) * 100,
-                (yearwiseData.get(year).get("qPosCount").get(authorType).get("NA") / yearwiseData.get(year).get("qTotal").get("NA")) * 100];
-            }
+            (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q2") / yearwiseData.get(year).get("qTotal").get("Q2")) * 100,
+            (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q3") / yearwiseData.get(year).get("qTotal").get("Q3")) * 100,
+            (yearwiseData.get(year).get("qPosCount").get(authorType).get("Q4") / yearwiseData.get(year).get("qTotal").get("Q4")) * 100,
+            (yearwiseData.get(year).get("qPosCount").get(authorType).get("NA") / yearwiseData.get(year).get("qTotal").get("NA")) * 100];
+        }
 
         function getTotalPublicationsByYear(year) {
             if (yearwiseData.get(year).size <= 0) {
@@ -2111,11 +2111,11 @@ input::-moz-range-thumb {
 
         function getPosTotalByYear(year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("author_pos_contrib")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [
@@ -2125,14 +2125,14 @@ input::-moz-range-thumb {
                 yearwiseData.get(year).get("author_pos_contrib").get("corresponding_author")
             ];
         }
-        
-        function getCitationsTotalByYear(year){
+
+        function getCitationsTotalByYear(year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("author_pos_cite_contrib")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [
@@ -2143,13 +2143,13 @@ input::-moz-range-thumb {
             ];
         }
 
-        function getCitationDistributionByYear(year){
+        function getCitationDistributionByYear(year) {
             if (yearwiseData.get(year).size <= 0) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             if (!yearwiseData.get(year).has("author_pos_cite_map")) {
-                return [0,0,0,0];
+                return [0, 0, 0, 0];
             }
 
             return [
@@ -2232,7 +2232,7 @@ input::-moz-range-thumb {
             }
             return total;
         }
-        
+
         function getQScoresCumulative(authorType, lower_year, upper_year) {
             let total = [0, 0, 0, 0, 0];
             for (let year = lower_year; year <= upper_year; year++) {
@@ -2275,7 +2275,7 @@ input::-moz-range-thumb {
             }
             return total;
         }
-        
+
         function getTotalPublicationsCumulative(lower_year, upper_year) {
             let total = 0;
             for (let year = lower_year; year <= upper_year; year++) {
@@ -2301,7 +2301,7 @@ input::-moz-range-thumb {
             return total;
         }
 
-        function getCitationsTotalCumulative(lower_year, upper_year){
+        function getCitationsTotalCumulative(lower_year, upper_year) {
             let total = [0, 0, 0, 0];
             for (let year = lower_year; year <= upper_year; year++) {
                 if (!yearList.includes(year.toString())) {
@@ -2315,7 +2315,7 @@ input::-moz-range-thumb {
             return total;
         }
 
-        function getCitationDistributionCumulative(lower_year, upper_year){
+        function getCitationDistributionCumulative(lower_year, upper_year) {
             let total = [[], [], [], []];
             for (let year = lower_year; year <= upper_year; year++) {
                 if (!yearList.includes(year.toString())) {
@@ -2341,7 +2341,7 @@ input::-moz-range-thumb {
             // console.log(yearList); //DEBUG
             // console.log(selectedPeryearCheck, selectedCumulativeCheck, selectedSingleYear, selectedMinYear, selectedMaxYear); //DEBUG
             // const plottingMinYear = selectedPeryearCheck ?  selectedCumulativeCheck ? selectedMinYear : selectedSingleYear : selectedMinYear;
-            const plottingMinYear = selectedPeryearCheck ?  selectedCumulativeCheck ? minYear : selectedSingleYear : selectedMinYear;
+            const plottingMinYear = selectedPeryearCheck ? selectedCumulativeCheck ? minYear : selectedSingleYear : selectedMinYear;
             const plottingMaxYear = selectedPeryearCheck ? selectedSingleYear : selectedMaxYear;
 
             // hFirst = hIndexArr[0];
@@ -2359,7 +2359,7 @@ input::-moz-range-thumb {
             // document.getElementById("h_co").textContent = hCO.toString();
 
             // console.log(selectedPeryearCheck, selectedCumulativeCheck, plottingMinYear, plottingMaxYear); //DEBUG
-            
+
 
             // firstAuthorCount = author_pos_contrib.get("first_author");
             // secondAuthorCount = author_pos_contrib.get("second_author");
@@ -2372,7 +2372,7 @@ input::-moz-range-thumb {
             // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
             // const totalAuthorCitations = firstAuthorCitationsTotal + secondAuthorCitationsTotal + correspondingAuthorCitationsTotal + coAuthorCitationsTotal;
 
-            
+
             // const firstAuthorCitationsPercentage = ((firstAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
             // const secondAuthorCitationsPercentage = ((secondAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
             // const correspondingAuthorCitationsPercentage = ((correspondingAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
@@ -2390,7 +2390,7 @@ input::-moz-range-thumb {
             // secondAuthorPercentage = ((secondAuthorCount / totalAuthorContributions) * 100).toFixed(2);
             // correspondingAuthorPercentage = ((correspondingAuthorCount / totalAuthorContributions) * 100).toFixed(2);
             // coAuthorPercentage = ((coAuthorCount / totalAuthorContributions) * 100).toFixed(2);
-            
+
             // Initialize the Chart.js bar chart
             // const ctx = document.getElementById('authorChart').getContext('2d');
             // new Chart(ctx, {
@@ -2427,7 +2427,7 @@ input::-moz-range-thumb {
             //         }
             //     }
             // });
-            
+
             const posTotalCitations = [
                 getPosTotalCitationsCumulative("first_author", plottingMinYear, plottingMaxYear),
                 getPosTotalCitationsCumulative("second_author", plottingMinYear, plottingMaxYear),
@@ -2444,20 +2444,20 @@ input::-moz-range-thumb {
             ];
 
             const authorCitationsChartData = {
-                    // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
-                    labels: ['First Author Citations\nTotal:' + posTotalCitations[0], 'Second Author Citations\nTotal:' + posTotalCitations[1], 'Co-Author Citations\nTotal:' + posTotalCitations[2], 'Corresponding Author Citations\nTotal:' + posTotalCitations[3]],
-                    datasets: [
-                        // { label: 'Q1 Citations', data: getQScoreCitations("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                        // { label: 'Q2 Citations', data: getQScoreCitations("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                        // { label: 'Q3 Citations', data: getQScoreCitations("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                        // { label: 'Q4 Citations', data: getQScoreCitations("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                        // { label: 'NA Citations', data: getQScoreCitations("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                        { label: 'Q1 Citations', data: qScoreCitations[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                        { label: 'Q2 Citations', data: qScoreCitations[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                        { label: 'Q3 Citations', data: qScoreCitations[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                        { label: 'Q4 Citations', data: qScoreCitations[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                        { label: 'NA Citations', data: qScoreCitations[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                    ]
+                // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
+                labels: ['First Author Citations\nTotal:' + posTotalCitations[0], 'Second Author Citations\nTotal:' + posTotalCitations[1], 'Co-Author Citations\nTotal:' + posTotalCitations[2], 'Corresponding Author Citations\nTotal:' + posTotalCitations[3]],
+                datasets: [
+                    // { label: 'Q1 Citations', data: getQScoreCitations("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                    // { label: 'Q2 Citations', data: getQScoreCitations("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                    // { label: 'Q3 Citations', data: getQScoreCitations("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                    // { label: 'Q4 Citations', data: getQScoreCitations("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                    // { label: 'NA Citations', data: getQScoreCitations("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                    { label: 'Q1 Citations', data: qScoreCitations[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                    { label: 'Q2 Citations', data: qScoreCitations[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                    { label: 'Q3 Citations', data: qScoreCitations[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                    { label: 'Q4 Citations', data: qScoreCitations[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                    { label: 'NA Citations', data: qScoreCitations[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                ]
             };
 
             let chartStatus = Chart.getChart("authorCitationsChart"); // <canvas> id
@@ -2559,7 +2559,7 @@ input::-moz-range-thumb {
             }
 
             const posTotals = getPosTotalCumulative(plottingMinYear, plottingMaxYear);
-            
+
             //If you want it to add upto 100 then use this
             const totalAuthorContributions = posTotals[0] + posTotals[1] + posTotals[2] + posTotals[3];
 
@@ -2571,38 +2571,38 @@ input::-moz-range-thumb {
             const firstAuthorPercentage = ((posTotals[0] / totalAuthorContributions) * 100).toFixed(2);
             const secondAuthorPercentage = ((posTotals[1] / totalAuthorContributions) * 100).toFixed(2);
             const correspondingAuthorPercentage = ((posTotals[3] / totalAuthorContributions) * 100).toFixed(2);
-            const coAuthorPercentage = ((posTotals[2] / totalAuthorContributions) * 100).toFixed(2);   
+            const coAuthorPercentage = ((posTotals[2] / totalAuthorContributions) * 100).toFixed(2);
 
             const authorStackedChartData = {
-                    // labels: ['Author Contribution %'],
-                    labels: [''],
-                    datasets: [{
-                        label: 'First Author Contribution %',
-                        data: [firstAuthorPercentage], // Make sure it's one value per dataset
-                        backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
-                        borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }, {
-                        label: 'Second Author Contribution %',
-                        data: [secondAuthorPercentage], // One value per dataset
-                        backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
-                        borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
-                        borderWidth: 1
-                        }, {
-                        label: 'Co-Author Contribution %',
-                        data: [coAuthorPercentage], // One value per dataset
-                        backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
-                        borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
-                        borderWidth: 1
-                        }, {
-                        label: 'Corresponding Author Contribution %',
-                        data: [correspondingAuthorPercentage], // One value per dataset
-                        backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
-                        borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
+                // labels: ['Author Contribution %'],
+                labels: [''],
+                datasets: [{
+                    label: 'First Author Contribution %',
+                    data: [firstAuthorPercentage], // Make sure it's one value per dataset
+                    backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
+                    borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Second Author Contribution %',
+                    data: [secondAuthorPercentage], // One value per dataset
+                    backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
+                    borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Co-Author Contribution %',
+                    data: [coAuthorPercentage], // One value per dataset
+                    backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
+                    borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Corresponding Author Contribution %',
+                    data: [correspondingAuthorPercentage], // One value per dataset
+                    backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
+                    borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
             };
-            
+
             chartStatus = Chart.getChart("authorStackedChart"); // <canvas> id
             if (chartStatus != undefined) {
                 // chartStatus.clear();
@@ -2655,12 +2655,12 @@ input::-moz-range-thumb {
                     }
                 });
             }
-            
-            const citationsTotals = getCitationsTotalCumulative(plottingMinYear, plottingMaxYear); 
+
+            const citationsTotals = getCitationsTotalCumulative(plottingMinYear, plottingMaxYear);
 
             const totalAuthorCitations = citationsTotals[0] + citationsTotals[1] + citationsTotals[2] + citationsTotals[3];
 
-            
+
             const firstAuthorCitationsPercentage = ((citationsTotals[0] / totalAuthorCitations) * 100).toFixed(2);
             const secondAuthorCitationsPercentage = ((citationsTotals[1] / totalAuthorCitations) * 100).toFixed(2);
             const correspondingAuthorCitationsPercentage = ((citationsTotals[3] / totalAuthorCitations) * 100).toFixed(2);
@@ -3001,7 +3001,7 @@ input::-moz-range-thumb {
             // doubleRangeInputs[1].min = minYear;
             // doubleRangeInputs[1].max = maxYear;
             doubleRangeInputs[1].value = selectedMaxYear.toString();
-            
+
             // console.log("before update: ", selectedMinYear , selectedMaxYear);
 
             updateSingleRange(selectedSingleYear);
@@ -3048,86 +3048,86 @@ input::-moz-range-thumb {
         }
 
         function draw10yearsChart() {
-                const decadeCounts = [];
-                const decadeYear = [];
-                const publicationDropOff = [];
-                let curr_year = maxYear - 10;
-                while (curr_year <= maxYear ) {
-                    decadeYear.push(curr_year);
-                    if (yearwiseData.has(curr_year.toString())) {
-                        decadeCounts.push(yearwiseData.get(curr_year.toString()).get("total_publications"));
-                    } else {
-                        decadeCounts.push(0);
-                    }
-                    publicationDropOff.push(60); //publication drop-off is 60
-                    curr_year += 1;
-                }
-                // console.log(maxYear); //DEBUG
-                // console.log(decadeCounts); //DEBUG
-                // console.log(decadeYear); //DEBUG
-                const decadeCountsChartData = {
-                                    labels: decadeYear,//['Decade at a glance'],
-                                    datasets: [
-                                        {
-                                            // type: 'bar',
-                                            label: ['Publication Count'],
-                                            data: decadeCounts, backgroundColor: QbackgroundColor[0][0], borderColor: QborderColor[0][0], borderWidth: 1
-                                        }
-                                        // {
-                                        //     label: 'Publication Drop-Off',
-                                        //     data: publicationDropOff,
-                                        //     fill: false,
-                                        //     // backgroundColor: ['#000000', '#000000', '#000000', '#000000'],
-                                        //     // Changes this dataset to become a line
-                                        //     type: 'line'
-                                        // }
-                                    ]
-                };
-
-                let chartStatus = Chart.getChart("tenyearPubCountChart"); 
-                if (chartStatus != undefined) {
-                    // chartStatus.clear();
-                    // chartStatus.destroy();
-                    chartStatus.data = decadeCountsChartData;
-                    chartStatus.update();
+            const decadeCounts = [];
+            const decadeYear = [];
+            const publicationDropOff = [];
+            let curr_year = maxYear - 10;
+            while (curr_year <= maxYear) {
+                decadeYear.push(curr_year);
+                if (yearwiseData.has(curr_year.toString())) {
+                    decadeCounts.push(yearwiseData.get(curr_year.toString()).get("total_publications"));
                 } else {
-                    const decadeCountsChart = document.getElementById('tenyearPubCountChart').getContext('2d');
-                    new Chart(decadeCountsChart, {
-                        type: 'bar',
-                        // type: 'scatter',
-                        data: decadeCountsChartData,
-                        options: {
-                            responsive: true,
-                            // maxBarThickness: 2,
-                            plugins: {
-                                legend: {
-                                    display: false  // Completely hide the legend
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Publication Counts of last 10 years'
+                    decadeCounts.push(0);
+                }
+                publicationDropOff.push(60); //publication drop-off is 60
+                curr_year += 1;
+            }
+            // console.log(maxYear); //DEBUG
+            // console.log(decadeCounts); //DEBUG
+            // console.log(decadeYear); //DEBUG
+            const decadeCountsChartData = {
+                labels: decadeYear,//['Decade at a glance'],
+                datasets: [
+                    {
+                        // type: 'bar',
+                        label: ['Publication Count'],
+                        data: decadeCounts, backgroundColor: QbackgroundColor[0][0], borderColor: QborderColor[0][0], borderWidth: 1
+                    }
+                    // {
+                    //     label: 'Publication Drop-Off',
+                    //     data: publicationDropOff,
+                    //     fill: false,
+                    //     // backgroundColor: ['#000000', '#000000', '#000000', '#000000'],
+                    //     // Changes this dataset to become a line
+                    //     type: 'line'
+                    // }
+                ]
+            };
+
+            let chartStatus = Chart.getChart("tenyearPubCountChart");
+            if (chartStatus != undefined) {
+                // chartStatus.clear();
+                // chartStatus.destroy();
+                chartStatus.data = decadeCountsChartData;
+                chartStatus.update();
+            } else {
+                const decadeCountsChart = document.getElementById('tenyearPubCountChart').getContext('2d');
+                new Chart(decadeCountsChart, {
+                    type: 'bar',
+                    // type: 'scatter',
+                    data: decadeCountsChartData,
+                    options: {
+                        responsive: true,
+                        // maxBarThickness: 2,
+                        plugins: {
+                            legend: {
+                                display: false  // Completely hide the legend
+                            },
+                            title: {
+                                display: true,
+                                text: 'Publication Counts of last 10 years'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: false,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
                                 }
                             },
-                            scales: {
-                                x: {
-                                    stacked: false,
-                                    grid: {
-                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                    }
-                                },
-                                y: {
-                                    stacked: false,
-                                    beginAtZero: true,
-                                    grid: {
-                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the y-axis gridlines
-                                    }
+                            y: {
+                                stacked: false,
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the y-axis gridlines
                                 }
                             }
                         }
-                    });
-                }
-
+                    }
+                });
             }
+
+        }
 
         // Main scraping function for publications, citations, year, and authors
         const scrapePublications = async () => {
@@ -3138,7 +3138,7 @@ input::-moz-range-thumb {
             // const publicationAuthorPositions = new Map();
 
             const journalAttributesCache = new Map();
-            function getExcelColumns(journalTitle, jsonData, cols = [ 5, 7 ]) {
+            function getExcelColumns(journalTitle, jsonData, cols = [5, 7]) {
                 // Ensure both strings are compared case-insensitively. Split by comma and take the first part. replace numbers, punctuations and extra spaces
                 const lowerCaseJournalTitle = journalTitle.toLowerCase().split(/,\s*(.+)/)[0].replace(/\d+/g, '').replace(/[^\w\s]|_/g, '').replace(/\s+/g, ' ').trim();
                 if (journalAttributesCache.has(lowerCaseJournalTitle)) return journalAttributesCache.get(lowerCaseJournalTitle);
@@ -3151,7 +3151,7 @@ input::-moz-range-thumb {
                         // console.log(attributeValues); //DEBUG
                         // console.log(Math.max(...cols)); //DEBUG
                         if (attributeValues.length >= Math.max(...cols)) {
-                            const selectedValues = cols.map(index => attributeValues[index]);
+                            const selectedValues = [entry.JIF5Years, entry.Qscore]; //cols.map(index => attributeValues[index]);
                             // console.log("Journal Title: ", lowerCaseJournalTitle, "Excel Column: ", selectedValues); //DEBUG
                             journalAttributesCache.set(lowerCaseJournalTitle, selectedValues);
                             return selectedValues; // 5ht col contains the impact factor and 8th attribute/Column which is the Q* score in the excel file/JSON
@@ -3191,14 +3191,14 @@ input::-moz-range-thumb {
             //         });
             //         const finalUrl = response.request.res.responseUrl || response.request._redirectable._options.href;
             //     console.warn(finalUrl); //DEBUG
-                    
+
             //         return finalUrl;
             //     } catch (error) {
             //         console.error('Error resolving final URL:', error);
             //         return null;
             //     }
             // }
-            
+
             publicationElements.forEach((element, index) => {
                 // Pre-process the expanded publication table
                 const publicationTitleElement = element.querySelector('.gsc_a_t a');
@@ -3211,7 +3211,7 @@ input::-moz-range-thumb {
                 if (isNaN(citationCount)) {
                     citationCount = 0;
                 }
-                
+
                 const grayElements = element.querySelectorAll('.gsc_a_t .gs_gray');
 
                 const spanElement = element.querySelector('.gs_oph');
@@ -3219,22 +3219,22 @@ input::-moz-range-thumb {
                 const journalTitle = spanElement ? (spanElement.previousSibling ? spanElement.previousSibling.textContent.trim() : "Unknown Journal") : "Unknown Journal";
 
                 if (journalTitle.toLowerCase().match(/rxiv/) != null) {
-                    preprintCount++;    
-                }else{
-                //If it is not preprint then we add +1 to journal name
-                const journalNameMatch = journalTitle.match(journalNameRegex);
-                const journalName = journalNameMatch ? journalNameMatch[1].trim() : journalTitle;
+                    preprintCount++;
+                } else {
+                    //If it is not preprint then we add +1 to journal name
+                    const journalNameMatch = journalTitle.match(journalNameRegex);
+                    const journalName = journalNameMatch ? journalNameMatch[1].trim() : journalTitle;
 
-                if (!journalCountMap.has(journalName)) {
-                    journalCountMap.set(journalName, 0);
-                }
+                    if (!journalCountMap.has(journalName)) {
+                        journalCountMap.set(journalName, 0);
+                    }
 
-                journalCountMap.set(journalName, journalCountMap.get(journalName) + 1);
+                    journalCountMap.set(journalName, journalCountMap.get(journalName) + 1);
                 }
 
                 const yearElement = element.querySelector('.gsc_a_y span');
                 const year = yearElement ? yearElement.textContent.trim() : "No year";
-                
+
                 const articleLinkElement = element.querySelector('.gs_ibl');
                 const articleLinkGS = articleLinkElement ? articleLinkElement.hasAttribute("href") ? articleLinkElement.getAttribute("href") : null : null;
 
@@ -3256,7 +3256,7 @@ input::-moz-range-thumb {
                     if (!yearList.includes(year)) {
                         yearList.push(year);
                     }
-                
+
                     // // console.log(articleLinkGS); //DEBUG
                     // // console.log(articleLinkElement); //DEBUG
                     // if (articleLinkGS && articleLinkGS.length > 0) {
@@ -3264,7 +3264,7 @@ input::-moz-range-thumb {
                     //     // Get the 'cites' query parameter
                     //     const citationCluster = new URL(articleLinkGS).searchParams.get("cites");
                     //     if (citationCluster) {
-                            
+
                     //         // loadScript(axiosPath, async () => {
                     //             resolveFinalUrl(`https://scholar.google.com/scholar?oi=bibs&cluster=${citationCluster}&btnI=1`).then((articleLink) => 
                     //         classifyArticleFromLink(articleLink)
@@ -3279,7 +3279,7 @@ input::-moz-range-thumb {
                     //         //     console.error("Error:", error);
                     //         // }
                     //         // });
-                        
+
                     //     }
                     // }
 
@@ -3290,7 +3290,7 @@ input::-moz-range-thumb {
                 const authors = authorsElement ? authorsElement.textContent.trim() : "No authors";
 
                 // Get journal Q* score from the Excel data
-                const excelAttrs = getExcelColumns(journalTitle, excelData, [ 5, 7 ]);
+                const excelAttrs = getExcelColumns(journalTitle, excelData, [5, 7]);
 
                 // // If authors list contains '...', then the full authors list is not displayed so we need to scrape it from the publication URL
                 // if (authors.includes("...") && publicationUrl) {
@@ -3321,8 +3321,8 @@ input::-moz-range-thumb {
             //sort map in descending and and take the first three elements //Thanks DeepSeek R1
             // Convert Map to array, sort by count (descending), take top 3
             const sortedEntries = [...journalCountMap.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
             //Display the table in HTML
             const tableHtml = `
             <table class="journalTableStyle">
@@ -3373,7 +3373,7 @@ input::-moz-range-thumb {
                 try {
                     let index = 0;
                     // let timeDelay = 0;
-                    
+
                     if (urls.length >= 100) {
                         timeDelay = timeDelay > 10000 ? timeDelay : 10000;
                         // limit = 5;
@@ -3408,7 +3408,7 @@ input::-moz-range-thumb {
                                     //     const html = await response.text();
                                     //     const doc = parser.parseFromString(DOMPurify.sanitize(html), 'text/html');
                                     //     const authorDiv = doc.querySelector('.gsc_oci_value');
-                                        
+
                                     //     console.log(authorDiv.textContent.trim()); //DEBUG
                                     //     return authorDiv ? authorDiv.textContent.trim() : "Authors not found";
                                     // }
@@ -3419,10 +3419,10 @@ input::-moz-range-thumb {
                                     const html = await response.text();
                                     const doc = parser.parseFromString(DOMPurify.sanitize(html), 'text/html');
                                     const authorDiv = doc.querySelector('.gsc_oci_value');
-                                    
+
                                     // console.log(authorDiv.textContent.trim()); //DEBUG
                                     return authorDiv ? authorDiv.textContent.trim() : "Authors not found";
-                                        
+
                                 } catch (error) {
                                     console.error("Error fetching authors:", error);
                                     window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
@@ -3448,7 +3448,7 @@ input::-moz-range-thumb {
                                 // }
                             } catch (error) {
                                 console.error("Error fetching authors (batch.map):", error);
-                                
+
                                 return "Error loading authors";
                             }
                         });
@@ -3464,7 +3464,7 @@ input::-moz-range-thumb {
                 } catch (error) {
                     console.log("Error Fetching Authors:", error);
                     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-                            console.log(response.status);  // Should log "Semaphore acquired" once acquired
+                        console.log(response.status);  // Should log "Semaphore acquired" once acquired
                     });
                     window.locoation.reload();
                 }
@@ -3718,7 +3718,7 @@ input::-moz-range-thumb {
                 // return authorRegexes.test(non_specialAuthor_name) || non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || areEqual(author, authorName);
 
                 const regexRes = [];
-                
+
                 authorRegexes.forEach((nameRegex) => {
                     regexRes.push(nameRegex.test(non_specialAuthor_name));
                 });
@@ -3745,7 +3745,7 @@ input::-moz-range-thumb {
                     regexRes.push(name.test(non_specialAuthor_name));
                 });
                 regexRes.push(areEqual(author, authorName));
-                
+
                 regexRes.push(otherNamesList.includes(normalizeString(author.trim())));
                 regexRes.push(nameComboList.includes(author.trim()));
 
@@ -3760,19 +3760,19 @@ input::-moz-range-thumb {
                 //Initial scrape
                 // Process publication data and match authors
                 for (const [pub_idx, publication] of publicationData.entries()) {
-    
+
                     // if (publication.authors === "Pending") {
                     //     // Process pending authors in the extended scrape step (next step)
                     //     extended_scrape = true;
                     //     continue;
                     // }
                     if (pub_idx > retractionProgress) {
-                    //    console.log(retractedPubsIdxList.length); //DEBUG
+                        //    console.log(retractedPubsIdxList.length); //DEBUG
                         //wait until retraction check is complete for the specific publication
                         await new Promise(resolve => setTimeout(resolve, 100));
                     }
 
-                    if(retractedPubsIdxList.includes(pub_idx)){
+                    if (retractedPubsIdxList.includes(pub_idx)) {
                         continue;
                     }
 
@@ -3780,9 +3780,9 @@ input::-moz-range-thumb {
                     const citationCount = publication.citations;
                     let author_list = authors.split(',').map(author => author.trim());
                     let author_list_filtered = author_list.filter(checkAuthor);
-    
+
                     // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
-                    if ((uniq(author_list_filtered).length > 1 || author_list_filtered.length === 0 ) && authors.includes("...")) {
+                    if ((uniq(author_list_filtered).length > 1 || author_list_filtered.length === 0) && authors.includes("...")) {
                         // If multiple surnames match, fetch extended author list for clarification
                         // urls.push(allURLs[pub_idx]);
                         // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
@@ -3791,7 +3791,7 @@ input::-moz-range-thumb {
                         extended_scrape = true;
                         continue;
                     }
-    
+
                     let authorFound = false;
                     publicationProgress += 1;
                     updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
@@ -3804,7 +3804,7 @@ input::-moz-range-thumb {
                             extended_scrape = true;
                             return;
                         }
-    
+
                         //1st condition in the if() is a special case where extended author info is not available and we have conflicts with the author name/surname (multiple authors with sharmas for eg, n sharma & g sharma)
                         const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
                         if (non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || non_specialAuthor_name.includes(authorNameLong.toLowerCase()) || areEqual(author, authorName) || otherNamesList.includes(normalizeString(author.trim()))) {
@@ -3818,18 +3818,18 @@ input::-moz-range-thumb {
                                 authorFound = true;
                                 // if author name is processed, add to authorNamesConsidered list after stripping punctuation and extra spaces
                                 const authorTrimmed = author.replace(/[\*\^']|_/g, "").replace(/\s+/g, " ").trim();
-    
+
                                 if (!authorNamesConsidered.includes(authorTrimmed)) {
                                     authorNamesConsidered.push(authorTrimmed);
                                 }
-                                
+
                                 // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
-    
+
                                 // Process author positions based on roles (e.g., first author, co-author)
                                 publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
                                 processedPubsIdx.add(pub_idx);
                                 publicationData[pub_idx].total_authors = author_list.length;
-                                
+
                                 // firstAuthorCount = author_pos_contrib.get("first_author");
                                 // secondAuthorCount = author_pos_contrib.get("second_author");
                                 // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
@@ -3838,7 +3838,7 @@ input::-moz-range-thumb {
                                 // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
                                 // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
                                 // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
-                                
+
                                 let adjustedCitationCount = 0;
                                 let citationWeight = 0;
                                 let author_pos_string = "0\t0\t0\t0";
@@ -3872,27 +3872,27 @@ input::-moz-range-thumb {
                                         console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG    
                                         break;
                                 }
-    
+
                                 // console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
-    
-                                tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ?  `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
+
+                                tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
                             }
                         }
                     });
-    
+
                     if (!yearwiseData.get(publication.year).has("total_publications")) {
                         yearwiseData.get(publication.year).set("total_publications", 0);
                     }
                     yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
-    
+
                     if (!authorFound) {
                         // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
                         publicationData[pub_idx].authors = "Pending";
                         extended_scrape = true;
                     }
-    
+
                 } //Initial Scraping - End
-    
+
                 // console.log("Extended Scraping"); // DEBUG
                 //Extended Scrape - Scrape the extended author's list for publications with insufficient author info (or multi-matching or duplicating author names)
                 // if (urls.length > 0) {
@@ -3907,9 +3907,9 @@ input::-moz-range-thumb {
                     pub_titles = [];
                     pub_titles.length = 0;
                     let authorIndexExt = 0;
-    
+
                     // console.log(authorsListExt); //DEBUG
-    
+
                     for (const [pub_idx, publication] of publicationData.entries()) {
                         // Process all the authors which are pending. Pending authors require scraping of extended author information from the publication URL/page
                         if (pub_idx > retractionProgress) {
@@ -3918,27 +3918,27 @@ input::-moz-range-thumb {
                             await new Promise(resolve => setTimeout(resolve, 100));
                         }
 
-                        if(retractedPubsIdxList.includes(pub_idx)){
+                        if (retractedPubsIdxList.includes(pub_idx)) {
                             continue;
                         }
-                        
+
                         if (publication.authors === "Pending") {
                             publication.authors = authorsListExt[authorIndexExt] || "Authors not found";
                             authorIndexExt++;
                         } else {
                             continue;
                         }
-    
+
                         if (processedPubsIdx.has(pub_idx)) {
                             continue;
                         }
-    
+
                         const authors = publication.authors;
                         const citationCount = publication.citations;
                         let extended_check = true;
                         let author_list = authors.split(',').map(author => author.trim());
                         let author_list_filtered = author_list.filter(checkAuthorExtended);
-    
+
                         if (author_list_filtered.length === 0) {
                             // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
                             // In a lot of cases, the full names are not retrieved even from the extended author information so we revert back to simple author name matching to include them
@@ -3947,12 +3947,12 @@ input::-moz-range-thumb {
                             extended_check = false;
                             // console.warn("simple:", pub_idx, author_list_filtered); // DEBUG
                         }
-    
+
                         const regexToUse = extended_check ? authorRegexesEx : authorRegexes;
-    
+
                         // publicationProgress += 1;
                         // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-    
+
                         if (author_list_filtered.length === 0 || publication.authors === "Authors not found") {
                             // console.warn("extended - 1",pub_idx, publication.title, publication.authors); // DEBUG
                             // publicationAuthorPositions.set(pub_idx, "NA");
@@ -3964,7 +3964,7 @@ input::-moz-range-thumb {
                             publicationProgress += 1;
                             updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                             // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                            
+
                             let authorFound = false;
                             author_list.forEach((author, i) => {
                                 const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
@@ -3981,7 +3981,7 @@ input::-moz-range-thumb {
                                     //     regexExtended.push(name.test(non_specialAuthor_name));
                                     // });
                                     regexExtended.push(otherNamesList.includes(normalizeString(author.trim())));
-    
+
                                     if (regexExtended.some(x => x === true)) {
                                         authorFound = true;
                                         processedPubsIdx.add(pub_idx);
@@ -3990,17 +3990,17 @@ input::-moz-range-thumb {
                                         if (!authorNamesConsidered.includes(authorTrimmed)) {
                                             authorNamesConsidered.push(authorTrimmed);
                                         }
-    
+
                                         // console.warn("extended - FOUND",pub_idx, publication.title, publication.authors); // DEBUG
-    
+
                                         // Process author positions based on roles (e.g., first author, co-author)
                                         publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
-    
+
                                         publicationData[pub_idx].total_authors = author_list.length;
-                                
+
                                         let adjustedCitationCount = 0;
                                         let citationWeight = 0;
-                                        
+
                                         // firstAuthorCount = author_pos_contrib.get("first_author");
                                         // secondAuthorCount = author_pos_contrib.get("second_author");
                                         // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
@@ -4009,7 +4009,7 @@ input::-moz-range-thumb {
                                         // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
                                         // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
                                         // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
-    
+
                                         let author_pos_string = "0\t0\t0\t0";
                                         switch (publicationData[pub_idx].author_pos) {
                                             case "first_author":
@@ -4038,17 +4038,17 @@ input::-moz-range-thumb {
                                                 citationWeight = hCiteProp[3];
                                                 break;
                                         }
-                                        
-                                        tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ?  `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
+
+                                        tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
                                     }
                                 }
                             });
-    
+
                             if (!yearwiseData.get(publication.year).has("total_publications")) {
                                 yearwiseData.get(publication.year).set("total_publications", 0);
                             }
                             yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
-                            
+
                             if (!authorFound) {
                                 // console.warn("extended - 2", pub_idx, publication.title, publication.authors); // DEBUG
                                 // publicationAuthorPositions.set(pub_idx, "NA");
@@ -4057,18 +4057,18 @@ input::-moz-range-thumb {
                                 // console.log("After:", pub_author_no_match); //DEBUG
                             }
                         }
-    
+
                     }
                 } //Extended Scrape - End
-    
+
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
-    
+
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
-    
+
                     publicationProgress += 1;
                     updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
                     // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
@@ -4078,7 +4078,7 @@ input::-moz-range-thumb {
 
             async function checkRetractedPublications(publicationProgress) {
                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
-                
+
                 retractionWatchDB = await getRetractionWatchDB();
                 // console.log(retractionWatchDB); //DEBUG
                 // Check if the publication is retracted
@@ -4087,19 +4087,19 @@ input::-moz-range-thumb {
                 // let ele_index = 0;
                 // for(const [index, element] of publicationData.entries()) {
                 publicationData.forEach(async (element, index) => {
-                    var isPubRetracted = false;    
+                    var isPubRetracted = false;
                     const pubTitle = publicationData[index].title;
                     // const pubTitle = element.title;
-                    const cleanPubTitle = pubTitle.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g,'').replace(/retraction/g,'');
+                    const cleanPubTitle = pubTitle.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
                     retractionProgress += 1;
-    
+
                     retractionWatchDB.map(async (entry) => {
-                    // retractionWatchDB.forEach(async (entry) => {
-                        if(isPubRetracted){
+                        // retractionWatchDB.forEach(async (entry) => {
+                        if (isPubRetracted) {
                             // setTimeout(updateLoadingBar, 20, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
                             return;
                         }
-                        const cleanEntryTitle = entry.Title.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g,'').replace(/retraction/g,'');
+                        const cleanEntryTitle = entry.Title.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
                         if (cleanPubTitle === cleanEntryTitle) {
                             // console.log("Retracted Publication:", pubTitle, entry.Title); //DEBUG
                             retractedPubsIdxList.push(index);
@@ -4118,17 +4118,17 @@ input::-moz-range-thumb {
                         //     }
                         // }
                     });
-                    
+
                     updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
                     // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
                     // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
-    
+
                 });
                 return true;
             }
 
             const [result1, result2] = await Promise.all([
-                processPublicationsData(), 
+                processPublicationsData(),
                 checkRetractedPublications(publicationProgress)
             ]);
 
@@ -4155,7 +4155,7 @@ input::-moz-range-thumb {
             }
 
             publicationData.sort((a, b) => a.index - b.index); // Sort publications by index in ascending
-            
+
             publicationElements.forEach(async (element, index) => {
                 // Other code extracting title, citations, etc.
                 const authorPosition = publicationData[index].author_pos; //publicationAuthorPositions.get(index); //getAuthorPositionForCurrentPublication(index);
@@ -4254,7 +4254,7 @@ input::-moz-range-thumb {
                 //     console.warn("Author position not found for publication:", publicationData[index].title);
                 //     console.warn(element);
                 // }
-                
+
             });
 
             updateLoadingBar(99, "Processing Retractions... ", true);
@@ -4262,12 +4262,12 @@ input::-moz-range-thumb {
 
             // const csvPath = chrome.runtime.getURL("data/retraction_watch_stripped.csv");
             // const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
-            
+
 
             // console.log(retractedPubsCount);
-            
+
             publicationElements.forEach(async (element, index) => {
-                if(!retractedPubsIdxList.includes(index)){
+                if (!retractedPubsIdxList.includes(index)) {
                     return;
                 }
                 const gsGrayElement = element.querySelector('.gs_gray');
@@ -4277,7 +4277,7 @@ input::-moz-range-thumb {
             `);
                 gsGrayElement.insertAdjacentHTML('afterend', retractionHTML);
             });
-            
+
 
             // Function to recursively merge two Maps
             function mergeMaps(target, source) {
@@ -4301,7 +4301,7 @@ input::-moz-range-thumb {
                     }
                 }
             }
-            
+
             // // Function to adds all entries of the source map to the target map
             // function addEntries(source, target) {
             //     // Loop over the entries of the source map
@@ -4310,7 +4310,7 @@ input::-moz-range-thumb {
             //         target.set(key, value);
             //     }
             // }
-            
+
             // Note: in some cases, certain publications would not have year and it would be stored in the yearwiseData map as "" (empty string). We will have to move these to the most recent year to account for the metrics
 
             let emptyKeyData = yearwiseData.get("");
@@ -4333,9 +4333,9 @@ input::-moz-range-thumb {
                 // Remove the empty key
                 yearwiseData.delete("");
             }
-        
+
             let parsedData;
-            async function parseTSV(){
+            async function parseTSV() {
                 parsedData = Papa.parse(tsvContent, {
                     delimiter: '\t',
                     header: true
@@ -4374,109 +4374,109 @@ input::-moz-range-thumb {
                 // const hIndexMinCiteArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
                 // const subsetItersArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
                 // // const subsetRowCountsArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-        
+
                 // console.log(parsedData.data); //DEBUG
-                
+
                 // NONE OF THE DATAFRAME JS packages work due to unsafe eval() or Function() calls :( which is intolerated by CSP
-            //     // Convert the parsed data to a DataFrame
-            //     const df = new jandas.DataFrame(parsedData.data);
-            //     console.log(df); //DEBUG
+                //     // Convert the parsed data to a DataFrame
+                //     const df = new jandas.DataFrame(parsedData.data);
+                //     console.log(df); //DEBUG
                 const filterColumns = ['First_Author', 'Second_Author', 'Co_Author', 'Corresponding_Author'];
 
-            //     const sortedDf = df.sort_values(['Citations'], false); //.sort_values(filterColumns, false); // true for ascending order
+                //     const sortedDf = df.sort_values(['Citations'], false); //.sort_values(filterColumns, false); // true for ascending order
 
-            //     console.log(sortedDf); //DEBUG
-            //     // Take subsets based on the filter columns being 1
-            // //     const subsets = filterColumns.map((column_idx, column) => {
-            // //         const subset_df = [];
-            // //         sortedDf.iterrows((row, key, i) => {
-            // //             // console.log(row.values, key);
-            // //             // console.log(row); //DEBUG
-            // //             // console.log(sortedDf.iloc([row_idx, column_idx]).values); //DEBUG
-            // //             if (sortedDf.iloc([i, column_idx]).values === 1) {
-            // //                 subset_df.push(row);
-            // //             }
-            // //         });
-            // //         return subset_df;
-            // // });
-            //     shIndexPubCount = sortedDf.shape[0] - 1; // -1 for header
-                
-            //     const subsets = sortedDf.groupby(filterColumns).then((gp,k,i)=>{
-            //         // if (row.get(column) === 1) {
-            //         //             const rowCites = parseInt(row.get('Citations'));
-            //         //             // if citations is atleast the count of papers, increment the h-index of that authorPos
-            //         //             if (rowCites >= subsetItersArr[subset_idx]) {
-            //         //                 hIndexArr[column_idx]++;
-            //         //             }
-            //         //         } else {
-            //         //             return;
-            //         //         }
-            //         // console.log(gp,k,i); //DEBUG
-            //         // console.log(k.indexOf('1'));//DEBUG
-            //         const authorshipColumn = k.indexOf('1');
-            //         if (authorshipColumn >= 0) {
-            //             subsetItersArr[authorshipColumn]++;
-            //             gp.iterrows((row, key, j) => {
-            //                 // console.log(row, key, j); //DEBUG
-            //                 // console.log(filterColumns[authorshipColumn]); //DEBUG
-            //                 // console.log(row.loc(["Citations"]).values); //DEBUG
-            //                 // console.log(parseInt(row.loc(filterColumns[authorshipColumn]).values)); //DEBUG
-            //                 // if (parseInt(row.loc(filterColumns[authorshipColumn]).values) === 1) {
-            //                     const rowCites = parseInt(row.loc(["Citations"]).values);
-            //                     // if citations is atleast the count of papers, increment the h-index of that authorPos
-            //                     // console.log(rowCites); //DEBUG
-            //                     if (rowCites >= subsetItersArr[authorshipColumn]) {
-            //                         hIndexArr[authorshipColumn]++;
-            //                         // shIndexPubCount++;
-            //                     }
-            //                 // }
-            //             })
-            //         }
-            //     });
-                    
+                //     console.log(sortedDf); //DEBUG
+                //     // Take subsets based on the filter columns being 1
+                // //     const subsets = filterColumns.map((column_idx, column) => {
+                // //         const subset_df = [];
+                // //         sortedDf.iterrows((row, key, i) => {
+                // //             // console.log(row.values, key);
+                // //             // console.log(row); //DEBUG
+                // //             // console.log(sortedDf.iloc([row_idx, column_idx]).values); //DEBUG
+                // //             if (sortedDf.iloc([i, column_idx]).values === 1) {
+                // //                 subset_df.push(row);
+                // //             }
+                // //         });
+                // //         return subset_df;
+                // // });
+                //     shIndexPubCount = sortedDf.shape[0] - 1; // -1 for header
 
-            //     // console.log(subsets); //DEBUG
-            //     // // Iterate through the sorted DataFrame and fetch the citations columns for each author position
-            //     // sortedDf.map(row => {
-            //     //     const authorPos = row.get('authorPos'); // Assuming the first column is the author position
-            //     //     const citation = row.get('citation'); // Assuming the second column is the citation
-            //     //     citations.push({ authorPos, citation });
-            //     // });
+                //     const subsets = sortedDf.groupby(filterColumns).then((gp,k,i)=>{
+                //         // if (row.get(column) === 1) {
+                //         //             const rowCites = parseInt(row.get('Citations'));
+                //         //             // if citations is atleast the count of papers, increment the h-index of that authorPos
+                //         //             if (rowCites >= subsetItersArr[subset_idx]) {
+                //         //                 hIndexArr[column_idx]++;
+                //         //             }
+                //         //         } else {
+                //         //             return;
+                //         //         }
+                //         // console.log(gp,k,i); //DEBUG
+                //         // console.log(k.indexOf('1'));//DEBUG
+                //         const authorshipColumn = k.indexOf('1');
+                //         if (authorshipColumn >= 0) {
+                //             subsetItersArr[authorshipColumn]++;
+                //             gp.iterrows((row, key, j) => {
+                //                 // console.log(row, key, j); //DEBUG
+                //                 // console.log(filterColumns[authorshipColumn]); //DEBUG
+                //                 // console.log(row.loc(["Citations"]).values); //DEBUG
+                //                 // console.log(parseInt(row.loc(filterColumns[authorshipColumn]).values)); //DEBUG
+                //                 // if (parseInt(row.loc(filterColumns[authorshipColumn]).values) === 1) {
+                //                     const rowCites = parseInt(row.loc(["Citations"]).values);
+                //                     // if citations is atleast the count of papers, increment the h-index of that authorPos
+                //                     // console.log(rowCites); //DEBUG
+                //                     if (rowCites >= subsetItersArr[authorshipColumn]) {
+                //                         hIndexArr[authorshipColumn]++;
+                //                         // shIndexPubCount++;
+                //                     }
+                //                 // }
+                //             })
+                //         }
+                //     });
 
 
-            //     // Function to process each subset
-            //     // const processSubset = async (subset, filterColumns) => {
-            //     //     subset.map((subset_idx, row) => {
-            //     //         subsetItersArr[subset_idx]++;
-            //     //         // get row count of this subset
-            //     //         // subsetRowCountsArr[subset_idx] = subset.count();
-            //     //         // Find out which filtering column has a value of 1
-            //     //         filterColumns.forEach((column_idx, column) => {
-            //     //             if (row.get(column) === 1) {
-            //     //                 const rowCites = parseInt(row.get('Citations'));
-            //     //                 // if citations is atleast the count of papers, increment the h-index of that authorPos
-            //     //                 if (rowCites >= subsetItersArr[subset_idx]) {
-            //     //                     hIndexArr[column_idx]++;
-            //     //                 }
-            //     //             } else {
-            //     //                 return;
-            //     //             }
-            //     //         });
+                //     // console.log(subsets); //DEBUG
+                //     // // Iterate through the sorted DataFrame and fetch the citations columns for each author position
+                //     // sortedDf.map(row => {
+                //     //     const authorPos = row.get('authorPos'); // Assuming the first column is the author position
+                //     //     const citation = row.get('citation'); // Assuming the second column is the citation
+                //     //     citations.push({ authorPos, citation });
+                //     // });
 
-                        
-            //     //     });
-            //     // };
 
-            //     // // Iterate through the subsets in parallel
-            //     // const results = await Promise.all(subsets.map(subset => processSubset(subset, filterColumns)));
+                //     // Function to process each subset
+                //     // const processSubset = async (subset, filterColumns) => {
+                //     //     subset.map((subset_idx, row) => {
+                //     //         subsetItersArr[subset_idx]++;
+                //     //         // get row count of this subset
+                //     //         // subsetRowCountsArr[subset_idx] = subset.count();
+                //     //         // Find out which filtering column has a value of 1
+                //     //         filterColumns.forEach((column_idx, column) => {
+                //     //             if (row.get(column) === 1) {
+                //     //                 const rowCites = parseInt(row.get('Citations'));
+                //     //                 // if citations is atleast the count of papers, increment the h-index of that authorPos
+                //     //                 if (rowCites >= subsetItersArr[subset_idx]) {
+                //     //                     hIndexArr[column_idx]++;
+                //     //                 }
+                //     //             } else {
+                //     //                 return;
+                //     //             }
+                //     //         });
+
+
+                //     //     });
+                //     // };
+
+                //     // // Iterate through the subsets in parallel
+                //     // const results = await Promise.all(subsets.map(subset => processSubset(subset, filterColumns)));
 
                 shIndexPubCount = parsedData.data.length - 1; // -1 for header
                 function subsetJSONData(data, filterColumn) {
-                    return data.filter(row => 
+                    return data.filter(row =>
                         parseInt(row[filterColumn]) === 1
                     );
                 }
-                
+
                 // // Function to sort subsets by 'Citations'
                 // function sortJSONSubsets(subsets, sortColumn) {
                 //     subsets.forEach(subset => {
@@ -4488,7 +4488,7 @@ input::-moz-range-thumb {
                 filterColumns.forEach(column => {
                     subsets.set(column, subsetJSONData(parsedData.data, column));
                 })
-            
+
                 // subsets.forEach((subset, key) => {
                 //     subset.sort((a, b) => parseInt(b['Citations']) - parseInt(a['Citations'])); //Sort in Descending order
                 //     subset.forEach((row, row_key) => { 
@@ -4496,7 +4496,7 @@ input::-moz-range-thumb {
                 //         const authorshipColumn = filterColumns.map((column, index) => {
                 //             return parseInt(row[column]) === 1 ? index : -1; // If 1, return index; else -1
                 //         }).filter(index => index !== -1); // Remove -1 (columns where value isn't 1)
-        
+
                 //         // console.log(authorshipColumn); //DEBUG
                 //         if (authorshipColumn && authorshipColumn >= 0) {
                 //             subsetItersArr[authorshipColumn]++;
@@ -4515,8 +4515,8 @@ input::-moz-range-thumb {
                 subsets.forEach((subset, key) => {
                     // subset.sort((a, b) => parseInt(b['Citations']) - parseInt(a['Citations'])); //Sort in Descending order
                     subset.sort((a, b) => parseInt(b['Adjusted_Citations']) - parseInt(a['Adjusted_Citations'])); //Sort in Descending order
-                    subset.forEach((row, row_key) => { 
-                        if(retractedPubsIdxList.includes(parseInt(row['Index']))){
+                    subset.forEach((row, row_key) => {
+                        if (retractedPubsIdxList.includes(parseInt(row['Index']))) {
                             // console.warn(row, row_key); //DEBUG
                             return;
                         }
@@ -4524,7 +4524,7 @@ input::-moz-range-thumb {
                         const authorshipColumn = filterColumns.map((column, index) => {
                             return parseInt(row[column]) === 1 ? index : -1; // If 1, return index; else -1
                         }).filter(index => index !== -1); // Remove -1 (columns where value isn't 1)
-        
+
                         // console.log(authorshipColumn); //DEBUG
                         if (authorshipColumn && authorshipColumn >= 0) {
                             subsetItersArr[authorshipColumn]++;
@@ -4548,7 +4548,7 @@ input::-moz-range-thumb {
                 hSecond = hIndexArr[1];
                 hOther = hIndexArr[2];
                 hCO = hIndexArr[3];
-                
+
                 // console.log(hFirst, hSecond, hOther, hCO); //DEBUG
 
                 // // Calculate shIndex as 90% of hFirst, 50% of hSecond, 10% of hOther, and 100% of hCO
@@ -4557,14 +4557,14 @@ input::-moz-range-thumb {
 
                 adjustedCitations.sort((a, b) => b - a); // Sort in descending order
                 rawCitations.sort((a, b) => b - a); // Sort in descending order
-                
+
                 adjustedCitations.forEach((citations, index) => {
                     if (citations >= index + 1) {
                         shIndex = index + 1;
                     }
                 });
 
-                rawCitations.forEach((citations, index) => { 
+                rawCitations.forEach((citations, index) => {
                     if (citations <= 0)
                         zeroCitationPubs++;
                 });
@@ -4587,7 +4587,7 @@ input::-moz-range-thumb {
                 // document.getElementById("sh_index_info").innerHTML = DOMPurify.sanitize(`(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications`);
             }
 
-            function blinkText(element_id, interval=500) {
+            function blinkText(element_id, interval = 500) {
                 // const text = document.getElementById(element_id);
                 // let isVisible = true;
 
@@ -4597,7 +4597,7 @@ input::-moz-range-thumb {
                 //     isVisible = !isVisible;
                 // }, interval); // Change the interval duration as needed
                 const elements = document.querySelectorAll(`.${element_id}`);
-    
+
                 elements.forEach(element => {
                     let isVisible = true;
                     setInterval(() => {
@@ -4608,7 +4608,7 @@ input::-moz-range-thumb {
             }
 
             loadScript(papaparsePath, parseTSV);
-            
+
             // console.log(yearwiseData); //DEBUG
             // console.log(pub_author_no_match); //DEBUG
             // Load script for chart.js and render plots
@@ -4625,13 +4625,13 @@ input::-moz-range-thumb {
             });
             // uncomment if you want to use popup again
             // sendResponse({ authorName: authorName, publications: publicationData });
-        
+
         }; // scrapePublications - End
 
         // Click "Show More" until all publications are loaded
         const clickShowMoreUntilDisabled = async () => {
             const showMoreButton = document.querySelector('#gsc_bpf_more');
-            
+
             if (!showMoreButton) {
                 await new Promise(resolve => setTimeout(resolve, 1500)); // Wait and retry
                 return clickShowMoreUntilDisabled();
@@ -4647,7 +4647,7 @@ input::-moz-range-thumb {
                     await new Promise(resolve => setTimeout(resolve, 2000)); // Wait and retry
                     return clickShowMoreUntilDisabled();
                 } else {
-                    scrapePublications();   
+                    scrapePublications();
                     // console.log(totalPublications, articleCount); //DEBUG
                 }
             } else {
@@ -4664,7 +4664,7 @@ input::-moz-range-thumb {
                 console.log(response.status);  // Should log "Semaphore acquired" once acquired
                 updateLoadingBar(0, "Expanding Publications List: ", true);
                 const currentTabURL = window.location.href.toString();
-                fetch(currentTabURL).then((captchaTest) => { 
+                fetch(currentTabURL).then((captchaTest) => {
                     if (captchaTest.status != 200) {
                         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
                             console.log(release_response.status);  // Should log "Semaphore released" 
@@ -4673,7 +4673,7 @@ input::-moz-range-thumb {
                     }
                 });
 
-                (async function () { 
+                (async function () {
                     // await new Promise(resolve => setTimeout(resolve, 2000)); // Wait and retry
                     excelData = await getJCRExcel();
                     retractionWatchDB = await getRetractionWatchDB();
