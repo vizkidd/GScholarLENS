@@ -1279,7 +1279,7 @@ input::-moz-range-thumb {
                                 <table class="plotmetrics_table" >
                                     <tbody class="plotmetrics_table_container">
                                     <tr>
-                                        <td id="table_metrics" style="text-align: center; padding-left: 25px;">
+                                        <td id="table_metrics" style="border-right: 1px solid black; padding-right: 15px; text-align: center; padding-left: 15px;">
                                         <div class="metrics_table_container">
                                         <table >
                                             <tr>
@@ -1319,11 +1319,13 @@ input::-moz-range-thumb {
                                         </td>
                                         <td id="year_plot" style="width: 100%;">
                                             <div class="plotmetrics_table_container"><canvas id="tenyearPubCountChart" class="yearplot_table_container"></canvas></div>
-                                        </td>
-                                    </tr>
+                                        </td>                                        
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
+                            <br>
+                            <center><span id="pubmachine_banner" style="color: blue; font-weight: bold;"></span></center>
                             <br>
                             <div class="range_slider_container">
                                 <div class="toggle_container">
@@ -3050,18 +3052,30 @@ input::-moz-range-thumb {
         function draw10yearsChart() {
             const decadeCounts = [];
             const decadeYear = [];
-            const publicationDropOff = [];
+            // const publicationDropOff = [];
+            const pubMachineYearList = [];
+            let isPubMachine = false;
             let curr_year = maxYear - 10;
             while (curr_year <= maxYear) {
                 decadeYear.push(curr_year);
                 if (yearwiseData.has(curr_year.toString())) {
-                    decadeCounts.push(yearwiseData.get(curr_year.toString()).get("total_publications"));
+                    const pubs_for_year = yearwiseData.get(curr_year.toString()).get("total_publications");
+                    decadeCounts.push(pubs_for_year);
+                    if(pubs_for_year > 2) { //publication machine threshold
+                        isPubMachine = true;
+                        pubMachineYearList.push(curr_year);
+                    }
                 } else {
                     decadeCounts.push(0);
                 }
-                publicationDropOff.push(60); //publication drop-off is 60
+                // publicationDropOff.push(60); //publication drop-off is 60
                 curr_year += 1;
             }
+
+            if(isPubMachine){
+                document.getElementById("pubmachine_banner").textContent = ">48 Papers/Year (" + pubMachineYearList.join(", ") + ")";
+            }
+
             // console.log(maxYear); //DEBUG
             // console.log(decadeCounts); //DEBUG
             // console.log(decadeYear); //DEBUG
@@ -3855,7 +3869,7 @@ input::-moz-range-thumb {
                                         break;
                                     case "co_author":
                                         author_pos_string = "0\t0\t1\t0";
-                                        if (publication.total_authors > 6 && publication.authors.includes("...")) {
+                                        if (publication.total_authors > 6 ) { //&& publication.authors.includes("...")
                                             adjustedCitationCount = citationCount * 0.1;
                                             citationWeight = 0.1;
                                         } else {
@@ -4024,7 +4038,7 @@ input::-moz-range-thumb {
                                                 break;
                                             case "co_author":
                                                 author_pos_string = "0\t0\t1\t0";
-                                                if (publication.total_authors > 6 && publication.authors.includes("...")) {
+                                                if (publication.total_authors > 6) { // && publication.authors.includes("...")
                                                     adjustedCitationCount = citationCount * 0.1;
                                                     citationWeight = 0.1;
                                                 } else {
