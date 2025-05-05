@@ -3061,7 +3061,7 @@ input::-moz-range-thumb {
                 if (yearwiseData.has(curr_year.toString())) {
                     const pubs_for_year = yearwiseData.get(curr_year.toString()).get("total_publications");
                     decadeCounts.push(pubs_for_year);
-                    if(pubs_for_year > 2) { //publication machine threshold
+                    if(pubs_for_year > 48) { //publication machine threshold
                         isPubMachine = true;
                         pubMachineYearList.push(curr_year);
                     }
