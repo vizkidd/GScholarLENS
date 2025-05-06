@@ -401,8 +401,6 @@ if (typeof importScripts === "function") {
 //     }
 // }
 
-
-
 const xlsxPath = chrome.runtime.getURL('libs/xlsx.full.min.js');
 loadScript(xlsxPath, readJCRExcel);
 

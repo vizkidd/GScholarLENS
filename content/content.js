@@ -18,12 +18,13 @@ schibsted_grotesk.load().then((loadedFont) => {
 });
 
 // Function to load scripts dynamically and insert them into the page with a callback
-function loadScript(url, callback) {
+async function loadScript(url, callback, id) {
     // Adding the script tag to the head as suggested before
     var head = document.head;
     var script = document.createElement('script');
     script.type = 'text/javascript';
     script.src = url;
+    script.id = id;
     // script.integrity = csp_hash_map.get(full_filename);
     // Then bind the event to the callback function.
     // There are several events for cross browser compatibility.
@@ -34,6 +35,59 @@ function loadScript(url, callback) {
     head.appendChild(script);
     return (true);
 }
+
+// async function loadScriptURL(url, callback, id) {
+//     // Adding the script tag to the head as suggested before
+//     const scriptResponse = await fetch(url);
+
+//     if (!scriptResponse.ok) {
+//         throw new Error(`loadScriptURL() Error: ${scriptResponse.status}`);
+//     }
+
+//     const scriptText = await scriptResponse.text();
+
+//     var head = document.head;
+//     var script = document.createElement('script');
+//     script.type = 'text/javascript';
+//     // script.src = url;
+//     script.id = id;
+//     script.textContent = scriptText;
+//     console.log("Script loaded: " + url);
+//     // script.integrity = csp_hash_map.get(full_filename);
+//     // Then bind the event to the callback function.
+//     // There are several events for cross browser compatibility.
+//     script.onreadystatechange = callback;
+//     script.onload = callback;
+
+//     // Fire the loading
+//     head.appendChild(script);
+//     return (true);
+// }
+
+// async function loadScriptURL(url, callback, id) {
+//     const res = await fetch(url);
+//     if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+//     const code = await res.text();
+  
+//     // Create a blob + object URL
+//     const blob = new Blob([code], { type: 'text/javascript' });
+//     const blobUrl = URL.createObjectURL(blob);
+  
+//     const script = document.createElement('script');
+//     script.id = id;
+//     script.src = blobUrl;
+//     script.onload = () => {
+//       URL.revokeObjectURL(blobUrl);  // clean up
+//       callback && callback();
+//     };
+//     script.onerror = e => {
+//       URL.revokeObjectURL(blobUrl);
+//       console.error('Error loading script:', e);
+//     };
+//     document.head.appendChild(script);
+//     return true;
+//   }
+  
 
 // function debounce(func, timeout = 300) {
 //   let timer;
@@ -428,7 +482,7 @@ function startScraping() {
             }
         });
 
-        window.addEventListener('unload', () => {
+        window.addEventListener('onbeforeunload', () => { //unload
             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
                 console.log(response.status);  // Should log "Semaphore released" 
             });
@@ -441,6 +495,8 @@ function startScraping() {
         let minYear = 0;
         let maxYear = 0;
         const minRangeValueGap = 1;
+        const pubMachineThreshold = 48;
+        const MAX_RETRIES = 5;
 
         let selectedPeryearCheck = false;
         let selectedCumulativeCheck = false;
@@ -452,6 +508,7 @@ function startScraping() {
         let publicationProgress = 0;
         let totalPublications = 0; //document.querySelectorAll(".gsc_a_at").length;
         let pub_author_no_match = 0;
+        let pub_no_year = 0;
 
         let hFirst = 0;
         let hSecond = 0;
@@ -1288,11 +1345,11 @@ input::-moz-range-thumb {
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Publications Considered:</b></th>
-                                                <td id="considered_pubs" style="text-align: center;">${totalPublications - pub_author_no_match}</td>
+                                                <td id="considered_pubs" style="text-align: center;">${totalPublications - (pub_author_no_match )}</td>
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Publications Not Counted:</b></th>
-                                                <td id="ignored_pubs" style="text-align: center;">${pub_author_no_match}</td>
+                                                <td id="ignored_pubs" style="text-align: center;">${pub_author_no_match }</td>
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Median - Raw Citations:</b></th>
@@ -1587,7 +1644,7 @@ input::-moz-range-thumb {
             }
 
             const dom2imagePath = chrome.runtime.getURL("libs/dom-to-image-more.min.js");
-            loadScript(dom2imagePath, capturePlots);
+            loadScript(dom2imagePath, capturePlots, "dom2image_script");
         });
 
 
@@ -3039,8 +3096,8 @@ input::-moz-range-thumb {
             const consideredAuthorNamesElement = document.getElementById("using_author_names");
 
             totalPubsElement.textContent = DOMPurify.sanitize(`${totalPublications.toString()}`);
-            consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - pub_author_no_match}`);
-            ignoredPubsElement.textContent = DOMPurify.sanitize(`${pub_author_no_match.toString()}`);
+            consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match )}`);
+            ignoredPubsElement.textContent = DOMPurify.sanitize(`${pub_author_no_match }`);
             consideredAuthorNamesElement.textContent = DOMPurify.sanitize(`${authorNamesConsidered.toString()}`);
 
             // Enable the download button and display the chart container
@@ -3061,7 +3118,7 @@ input::-moz-range-thumb {
                 if (yearwiseData.has(curr_year.toString())) {
                     const pubs_for_year = yearwiseData.get(curr_year.toString()).get("total_publications");
                     decadeCounts.push(pubs_for_year);
-                    if(pubs_for_year > 48) { //publication machine threshold
+                    if(pubs_for_year > pubMachineThreshold) { //publication machine threshold
                         isPubMachine = true;
                         pubMachineYearList.push(curr_year);
                     }
@@ -3073,7 +3130,7 @@ input::-moz-range-thumb {
             }
 
             if(isPubMachine){
-                document.getElementById("pubmachine_banner").textContent = ">48 Papers/Year (" + pubMachineYearList.join(", ") + ")";
+                document.getElementById("pubmachine_banner").textContent = `>${pubMachineThreshold} Papers/Year (${pubMachineYearList.join(", ")})`;
             }
 
             // console.log(maxYear); //DEBUG
@@ -3098,6 +3155,44 @@ input::-moz-range-thumb {
                 ]
             };
 
+            // Chart.register(Chart.Annotation);
+
+            const dropOffPlugin = {
+                id: 'dropOffLine',
+                afterDraw(chart, args, options) {
+                  const { ctx, scales } = chart;
+                  const yScale = scales.y;
+                  const xScale = scales.x;
+              
+                  // Compute pixel at y = options.value
+                  const yValue = options.value;
+                  const yPixel = yScale.getPixelForValue(yValue);
+              
+                  ctx.save();
+                  ctx.beginPath();
+                  ctx.strokeStyle = options.borderColor;
+                  ctx.lineWidth   = options.borderWidth;
+                  ctx.moveTo(xScale.left,  yPixel);
+                  ctx.lineTo(xScale.right, yPixel);
+                  ctx.stroke();
+              
+                  if (options.label && options.label.enabled) {
+                    ctx.fillStyle = options.label.color || options.borderColor;
+                    ctx.textAlign  = options.label.position === 'start' ? 'left' : 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(
+                      options.label.content,
+                      (xScale.left + xScale.right) / 2,
+                      yPixel - 4
+                    );
+                  }
+                  ctx.restore();
+                }
+              };
+              
+              // Register the plugin globally
+              Chart.register(dropOffPlugin);
+
             let chartStatus = Chart.getChart("tenyearPubCountChart");
             if (chartStatus != undefined) {
                 // chartStatus.clear();
@@ -3111,7 +3206,7 @@ input::-moz-range-thumb {
                     // type: 'scatter',
                     data: decadeCountsChartData,
                     options: {
-                        responsive: true,
+                        responsive: false,
                         // maxBarThickness: 2,
                         plugins: {
                             legend: {
@@ -3120,8 +3215,21 @@ input::-moz-range-thumb {
                             title: {
                                 display: true,
                                 text: 'Publication Counts of last 10 years'
+                            },
+                            dropOffLine: {
+                                value: pubMachineThreshold,
+                                borderColor: 'rgba(6, 40, 233, 0.7)',
+                                borderWidth: 2,
+                                z:-1,
+                                label: {
+                                  enabled: true,
+                                  content: 'Publication Machine',
+                                  position: 'start',    // 'start'|'center'|'end'
+                                  color: 'rgba(6, 40, 233, 0.7)',
+                                  z:-2
+                                }
                             }
-                        },
+                    },
                         scales: {
                             x: {
                                 stacked: false,
@@ -3213,7 +3321,7 @@ input::-moz-range-thumb {
             //     }
             // }
 
-            publicationElements.forEach((element, index) => {
+            publicationElements.forEach(async (element, index) => {
                 // Pre-process the expanded publication table
                 const publicationTitleElement = element.querySelector('.gsc_a_t a');
                 const publicationTitle = publicationTitleElement ? publicationTitleElement.textContent.trim() : "No title";
@@ -3426,9 +3534,13 @@ input::-moz-range-thumb {
                                     //     console.log(authorDiv.textContent.trim()); //DEBUG
                                     //     return authorDiv ? authorDiv.textContent.trim() : "Authors not found";
                                     // }
-
+                                    let request_retries = 0;
                                     while (!response || response.status != 200) {
                                         response = await fetchWithSessionCache(pub_titles[curr_idx], url, refetch = true);
+                                        request_retries++;
+                                        if(request_retries > MAX_RETRIES) {
+                                            throw new Error("Request limit exceeded. Refresh the page and rerun GScholarLENS.");
+                                        }
                                     }
                                     const html = await response.text();
                                     const doc = parser.parseFromString(DOMPurify.sanitize(html), 'text/html');
@@ -3439,12 +3551,13 @@ input::-moz-range-thumb {
 
                                 } catch (error) {
                                     console.error("Error fetching authors:", error);
-                                    window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
                                     //release semaphonre
                                     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
                                         console.log(release_response.status);  // Should log "Semaphore acquired" once acquired
                                         window.location.reload();
                                     });
+                                    window.location.reload();
+                                    window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
                                 }
 
                                 // Wait for backoff delay before retrying
@@ -3480,7 +3593,7 @@ input::-moz-range-thumb {
                     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
                         console.log(response.status);  // Should log "Semaphore acquired" once acquired
                     });
-                    window.locoation.reload();
+                    window.location.reload();
                 }
                 // await new Promise(resolve => setTimeout(resolve, 500));  // Wait for 0.5 seconds
                 return results;
@@ -3894,6 +4007,10 @@ input::-moz-range-thumb {
                         }
                     });
 
+                    if(publication.year.toString().trim().length === 0){
+                        pub_no_year += 1;
+                    }
+
                     if (!yearwiseData.get(publication.year).has("total_publications")) {
                         yearwiseData.get(publication.year).set("total_publications", 0);
                     }
@@ -3971,8 +4088,9 @@ input::-moz-range-thumb {
                             // console.warn("extended - 1",pub_idx, publication.title, publication.authors); // DEBUG
                             // publicationAuthorPositions.set(pub_idx, "NA");
                             // console.log("Before:", pub_author_no_match); //DEBUG
-                            pub_author_no_match += 1;
-                            tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${author_list_filtered.length}\t${publication.year}\t${publication.citations}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t0\t0\t0\t0\t0\n`; // Add each publication in a new row
+                            // pub_author_no_match += 1;
+                            // console.log(publication.authors); //DEBUG
+                            tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${author_list_filtered.length}\t${publication.year}\t${publication.citations}\t0\t0\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t0\t0\t0\t0\t0\n`; // Add each publication in a new row
                             // console.log("After:", pub_author_no_match); //DEBUG
                         } else {
                             publicationProgress += 1;
@@ -4057,6 +4175,10 @@ input::-moz-range-thumb {
                                     }
                                 }
                             });
+
+                            if(publication.year.toString().trim().length === 0){
+                                pub_no_year += 1;
+                            }
 
                             if (!yearwiseData.get(publication.year).has("total_publications")) {
                                 yearwiseData.get(publication.year).set("total_publications", 0);
@@ -4612,7 +4734,7 @@ input::-moz-range-thumb {
                 // }, interval); // Change the interval duration as needed
                 const elements = document.querySelectorAll(`.${element_id}`);
 
-                elements.forEach(element => {
+                elements.forEach(async element => {
                     let isVisible = true;
                     setInterval(() => {
                         element.style.visibility = isVisible ? "hidden" : "visible";
@@ -4621,13 +4743,22 @@ input::-moz-range-thumb {
                 });
             }
 
-            loadScript(papaparsePath, parseTSV);
+            loadScript(papaparsePath, parseTSV, "papaparse_script");
 
             // console.log(yearwiseData); //DEBUG
             // console.log(pub_author_no_match); //DEBUG
+            // console.log(totalPublications); //DEBUG
+            // console.log(pub_no_year); //DEBUG
             // Load script for chart.js and render plots
-            loadScript(chartPath, draw10yearsChart);
-            loadScript(chartPath, updateAuthorChart);
+
+            // function loadChartPlugin(){
+            //     const chartPluginPath = chrome.runtime.getURL('libs/chartjs-plugin-annotation.min.js');
+            //     loadScript(chartPluginPath, draw10yearsChart, "chartjs_plugin_script");
+            // }
+
+            loadScript(chartPath, draw10yearsChart, "chartjs_script_decade");
+            // loadScriptURL("https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js", draw10yearsChart, "chartjs_script_decade");
+            loadScript(chartPath, updateAuthorChart, "chartjs_script_author");
             loadingBarContainer.style.display = "none";
             if (retractedPubsCount > 0) {
                 blinkText("blink_text", 1250);
