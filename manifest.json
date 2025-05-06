@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GScholarLENS",
-  "version": "1.4.15",
+  "version": "1.4.16",
   "description": "Advanced Insights into Google Scholar Profiles.",
   "permissions": [
     "activeTab",
