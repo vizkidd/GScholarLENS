@@ -97,6 +97,36 @@ async function loadScript(url, callback, id) {
 //   };
 // }
 
+function releaseSemaphoreAndReload() {
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+      console.log(resp.status);
+      window.location.reload();
+    });
+  }
+
+  window.addEventListener('error', event => {
+    console.error('Uncaught error:', event);
+    // releaseSemaphoreAndReload();
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+      });
+  }, true);  // useCapture=true to catch as early as possible
+  
+  // 3) Catch unhandled promise rejections
+  window.addEventListener('unhandledrejection', event => {
+    console.error('Unhandled rejection:', event);
+    // releaseSemaphoreAndReload();
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+      });
+  }, true);
+
+  window.addEventListener('onbeforeunload', () => { //unload
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            console.log(response.status);  // Should log "Semaphore released" 
+        });
+    }, true); // useCapture=true to catch as early as possible
+
 // This async function is like "main()" for each tab/content script.
 // It runs automatically to load the excel data from local storage and create the button.
 // It does a preliminary test for the presence of a CAPTCHA page.
@@ -108,10 +138,11 @@ chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
         const currentTabURL = window.location.href.toString();
         const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
         if (captchaTest.status != 200) {
-            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-                console.log(release_response.status);  // Should log "Semaphore released" 
-                window.location.reload();
-            });
+            // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
+            //     console.log(release_response.status);  // Should log "Semaphore released" 
+            //     window.location.reload();
+            // });
+            releaseSemaphoreAndReload();
         }
         // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
         excelData = await getJCRExcel();
@@ -405,7 +436,7 @@ function createButton() {
     const profileSection = document.querySelector('#gsc_prf');
     profileSection.append(button);
 
-    // Add an event listener to the button to execute content.js when clicked
+    // Add an event listener to the button to execute GScholarLENS.js when clicked
     button.addEventListener("click", () => {
         // const currentTabURL = window.location.href.toString();
         // fetch(currentTabURL).then((captchaTest) => { 
@@ -429,7 +460,12 @@ function createButton() {
             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
                 console.log(response.status);  // Should log "Semaphore released" 
             });
-        }
+        } 
+        // finally{
+        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+        //         console.log(response.status);  // Should log "Semaphore released" 
+        //     });
+        // }
 
     }, { passive: true });
 }
@@ -463,6 +499,82 @@ function createButton() {
 //     return bestMatch;
 // }
 
+/**
+ * Deep-merges workerYearData into globalYearData.
+ * Both are Maps with:
+ *   key = year
+ *   value = Map of:
+ *     "total_publications"            → Number
+ *     "author_pos_contrib"            → Map<pos, Number>
+ *     "author_pos_cite_contrib"       → Map<pos, Number>
+ *     "author_pos_cite_map"           → Map<pos, Array>
+ *     "author_pos_cite_qscore"        → Map<pos, Map<quartile, Number>>
+ */
+function mergeYearwiseData(globalYearData, workerYearData) {
+    for (const [year, workerYearMap] of workerYearData.entries()) {
+      // If the year isn’t present in global, clone whole map
+      if (!globalYearData.has(year)) {
+        // Deep clone Maps and Arrays
+        const cloneYearMap = new Map();
+        for (const [key, val] of workerYearMap.entries()) {
+          if (val instanceof Map) {
+            cloneYearMap.set(key, new Map(val));       // shallow-map clone
+          } else if (Array.isArray(val)) {
+            cloneYearMap.set(key, [...val]);           // array clone
+          } else {
+            cloneYearMap.set(key, val);                // number or primitive
+          }
+        }
+        globalYearData.set(year, cloneYearMap);
+        continue;
+      }
+  
+      // Otherwise merge into existing global map
+      const globalYearMap = globalYearData.get(year);
+  
+      // 1) total_publications
+      if (workerYearMap.has("total_publications")) {
+        const globalTotal = globalYearMap.get("total_publications") || 0;
+        const workerTotal = workerYearMap.get("total_publications");
+        globalYearMap.set("total_publications", globalTotal + workerTotal);
+      }
+  
+      // 2) author_pos_contrib & author_pos_cite_contrib
+      for (const contribKey of ["author_pos_contrib", "author_pos_cite_contrib"]) {
+        const globalContrib = globalYearMap.get(contribKey);
+        const workerContrib = workerYearMap.get(contribKey);
+        if (globalContrib instanceof Map && workerContrib instanceof Map) {
+          for (const [pos, count] of workerContrib.entries()) {
+            globalContrib.set(pos, (globalContrib.get(pos) || 0) + count);
+          }
+        }
+      }
+  
+      // 3) author_pos_cite_map (arrays)
+      const globalMap = globalYearMap.get("author_pos_cite_map");
+      const workerMap = workerYearMap.get("author_pos_cite_map");
+      if (globalMap instanceof Map && workerMap instanceof Map) {
+        for (const [pos, arr] of workerMap.entries()) {
+          const existing = globalMap.get(pos) || [];
+          globalMap.set(pos, existing.concat(arr));
+        }
+      }
+  
+      // 4) author_pos_cite_qscore (nested maps)
+      const globalQ = globalYearMap.get("author_pos_cite_qscore");
+      const workerQ = workerYearMap.get("author_pos_cite_qscore");
+      if (globalQ instanceof Map && workerQ instanceof Map) {
+        for (const [pos, workerQuartMap] of workerQ.entries()) {
+          const globalQuartMap = globalQ.get(pos);
+          if (globalQuartMap instanceof Map) {
+            for (const [quart, val] of workerQuartMap.entries()) {
+              globalQuartMap.set(quart, (globalQuartMap.get(quart) || 0) + val);
+            }
+          }
+        }
+      }
+    }
+  }  
 
 function startScraping() {
     try {
@@ -480,12 +592,6 @@ function startScraping() {
                 // draw10yearsChart();
                 updateAuthorChart();
             }
-        });
-
-        window.addEventListener('onbeforeunload', () => { //unload
-            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-                console.log(response.status);  // Should log "Semaphore released" 
-            });
         });
 
         document.getElementsByTagName('body')[0].style.overflow = 'hidden'; // Lock scroll
@@ -1933,8 +2039,8 @@ input::-moz-range-thumb {
 
         // console.log(namesList); //DEBUG
 
-        const authorRegexes = []; // [first initial<wildcard *.>surname]
-        const authorRegexesEx = []; // [first name<wildcard *.>surname]
+        let authorRegexes = []; // [first initial<wildcard *.>surname]
+        let authorRegexesEx = []; // [first name<wildcard *.>surname]
         namesList.forEach((name) => {
             authorRegexes.push(getNameRegex(name));
             authorRegexesEx.push(getNameRegexExtended(name));
@@ -3541,11 +3647,12 @@ input::-moz-range-thumb {
                                         if(request_retries > MAX_RETRIES) {
                                             throw new Error("Request limit exceeded. Refresh the page and rerun GScholarLENS.");
                                         }
+                                        await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                                     }
                                     const html = await response.text();
                                     const doc = parser.parseFromString(DOMPurify.sanitize(html), 'text/html');
                                     const authorDiv = doc.querySelector('.gsc_oci_value');
-
+                                    await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                                     // console.log(authorDiv.textContent.trim()); //DEBUG
                                     return authorDiv ? authorDiv.textContent.trim() : "Authors not found";
 
@@ -3554,10 +3661,11 @@ input::-moz-range-thumb {
                                     //release semaphonre
                                     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
                                         console.log(release_response.status);  // Should log "Semaphore acquired" once acquired
+                                        window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
                                         window.location.reload();
                                     });
-                                    window.location.reload();
-                                    window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
+                                    // window.location.reload();
+                                    // window.alert("Large Profile : Rate limit reached. Please re-run GScholarLENS.");
                                 }
 
                                 // Wait for backoff delay before retrying
@@ -3579,15 +3687,17 @@ input::-moz-range-thumb {
                                 return "Error loading authors";
                             }
                         });
-
+                        
                         results.push(...await Promise.all(promises));
                         updateLoadingBar((index / urls.length) * 100, "Fetching URLs(" + index + "): ");
                         // setTimeout(updateLoadingBar, 20, (index / urls.length) * 100, "Fetching URLs(" + index + "): ");
+                        await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                         await requestBatch();
                     };
 
                     // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
                     await requestBatch();
+                    await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 } catch (error) {
                     console.log("Error Fetching Authors:", error);
                     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
@@ -3599,112 +3709,113 @@ input::-moz-range-thumb {
                 return results;
             }
 
-            function processAuthorPositions(author, author_list, citationCount, index, qscore, year, pub_idx) {
-                // Process author positions and contributions
-                const adj_i = adjustIndexForSymbols(author_list, index);
-                let position = "NA";  // Assume NA as position by default
+            // MOVED TO WORKER THREAD
+            // function processAuthorPositions(author, author_list, citationCount, index, qscore, year, pub_idx) {
+            //     // Process author positions and contributions
+            //     const adj_i = adjustIndexForSymbols(author_list, index);
+            //     let position = "NA";  // Assume NA as position by default
 
-                if (!yearwiseData.get(year).has("author_pos_contrib")) {
-                    yearwiseData.get(year).set("author_pos_contrib", new Map());
-                    yearwiseData.get(year).get("author_pos_contrib").set("first_author", 0);
-                    yearwiseData.get(year).get("author_pos_contrib").set("second_author", 0);
-                    yearwiseData.get(year).get("author_pos_contrib").set("co_author", 0);
-                    yearwiseData.get(year).get("author_pos_contrib").set("corresponding_author", 0);
-                }
+            //     if (!yearwiseData.get(year).has("author_pos_contrib")) {
+            //         yearwiseData.get(year).set("author_pos_contrib", new Map());
+            //         yearwiseData.get(year).get("author_pos_contrib").set("first_author", 0);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("second_author", 0);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("co_author", 0);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("corresponding_author", 0);
+            //     }
 
-                if (!yearwiseData.get(year).has("author_pos_cite_contrib")) {
-                    yearwiseData.get(year).set("author_pos_cite_contrib", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("first_author", 0);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("second_author", 0);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("co_author", 0);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("corresponding_author", 0);
-                }
+            //     if (!yearwiseData.get(year).has("author_pos_cite_contrib")) {
+            //         yearwiseData.get(year).set("author_pos_cite_contrib", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("first_author", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("second_author", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("co_author", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("corresponding_author", 0);
+            //     }
 
-                if (!yearwiseData.get(year).has("author_pos_cite_map")) {
-                    yearwiseData.get(year).set("author_pos_cite_map", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_map").set("first_author", []);
-                    yearwiseData.get(year).get("author_pos_cite_map").set("second_author", []);
-                    yearwiseData.get(year).get("author_pos_cite_map").set("co_author", []);
-                    yearwiseData.get(year).get("author_pos_cite_map").set("corresponding_author", []);
-                }
+            //     if (!yearwiseData.get(year).has("author_pos_cite_map")) {
+            //         yearwiseData.get(year).set("author_pos_cite_map", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_map").set("first_author", []);
+            //         yearwiseData.get(year).get("author_pos_cite_map").set("second_author", []);
+            //         yearwiseData.get(year).get("author_pos_cite_map").set("co_author", []);
+            //         yearwiseData.get(year).get("author_pos_cite_map").set("corresponding_author", []);
+            //     }
 
-                if (!yearwiseData.get(year).has("author_pos_cite_qscore")) {
-                    yearwiseData.get(year).set("author_pos_cite_qscore", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_qscore").set("first_author", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_qscore").set("second_author", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_qscore").set("co_author", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_qscore").set("corresponding_author", new Map());
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q1", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q2", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q3", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q4", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("NA", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q1", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q2", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q3", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q4", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("NA", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q1", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q2", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q3", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q4", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("NA", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q1", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q2", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q3", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q4", 0);
-                    yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("NA", 0);
-                }
+            //     if (!yearwiseData.get(year).has("author_pos_cite_qscore")) {
+            //         yearwiseData.get(year).set("author_pos_cite_qscore", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").set("first_author", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").set("second_author", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").set("co_author", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").set("corresponding_author", new Map());
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q1", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q2", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q3", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("Q4", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").set("NA", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q1", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q2", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q3", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("Q4", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").set("NA", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q1", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q2", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q3", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("Q4", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("co_author").set("NA", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q1", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q2", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q3", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("Q4", 0);
+            //         yearwiseData.get(year).get("author_pos_cite_qscore").get("corresponding_author").set("NA", 0);
+            //     }
 
-                if (author.includes('*') || adj_i + 1 === author_list.length) {
-                    position = "corresponding_author";
-                    // author_pos_contrib.set("corresponding_author", author_pos_contrib.get("corresponding_author") + 1);
-                    // author_pos_cite_contrib.set("corresponding_author", author_pos_cite_contrib.get("corresponding_author") + citationCount);
-                    // author_pos_cite_map.get("corresponding_author").push(citationCount);
-                    yearwiseData.get(year).get("author_pos_contrib").set("corresponding_author", yearwiseData.get(year).get("author_pos_contrib").get("corresponding_author") + 1);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("corresponding_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("corresponding_author") + citationCount);
-                    yearwiseData.get(year).get("author_pos_cite_map").get("corresponding_author").push(citationCount);
-                } else if (adj_i === 0) {
-                    position = "first_author";
-                    // author_pos_contrib.set("first_author", author_pos_contrib.get("first_author") + 1);
-                    // author_pos_cite_contrib.set("first_author", author_pos_cite_contrib.get("first_author") + citationCount);
-                    // author_pos_cite_map.get("first_author").push(citationCount);
-                    yearwiseData.get(year).get("author_pos_contrib").set("first_author", yearwiseData.get(year).get("author_pos_contrib").get("first_author") + 1);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("first_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("first_author") + citationCount);
-                    yearwiseData.get(year).get("author_pos_cite_map").get("first_author").push(citationCount);
-                } else if (adj_i === 1) {
-                    position = "second_author";
-                    // author_pos_contrib.set("second_author", author_pos_contrib.get("second_author") + 1);
-                    // author_pos_cite_contrib.set("second_author", author_pos_cite_contrib.get("second_author") + citationCount);
-                    // author_pos_cite_map.get("second_author").push(citationCount);
-                    yearwiseData.get(year).get("author_pos_contrib").set("second_author", yearwiseData.get(year).get("author_pos_contrib").get("second_author") + 1);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("second_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("second_author") + citationCount);
-                    yearwiseData.get(year).get("author_pos_cite_map").get("second_author").push(citationCount);
-                } else if (adj_i > 1 && adj_i + 1 < author_list.length) {
-                    position = "co_author";
-                    // author_pos_contrib.set("co_author", author_pos_contrib.get("co_author") + 1);
-                    // author_pos_cite_contrib.set("co_author", author_pos_cite_contrib.get("co_author") + citationCount);
-                    // author_pos_cite_map.get("co_author").push(citationCount);
-                    yearwiseData.get(year).get("author_pos_contrib").set("co_author", yearwiseData.get(year).get("author_pos_contrib").get("co_author") + 1);
-                    yearwiseData.get(year).get("author_pos_cite_contrib").set("co_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("co_author") + citationCount);
-                    yearwiseData.get(year).get("author_pos_cite_map").get("co_author").push(citationCount);
-                } else {
-                    console.log("IDX:", pub_idx, "Adj idx:", adj_idx, "Author:", author, "Position:", position, "Citations:", citationCount, "QScore:", qscore); //DEBUG
-                    console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
-                }
+            //     if (author.includes('*') || adj_i + 1 === author_list.length) {
+            //         position = "corresponding_author";
+            //         // author_pos_contrib.set("corresponding_author", author_pos_contrib.get("corresponding_author") + 1);
+            //         // author_pos_cite_contrib.set("corresponding_author", author_pos_cite_contrib.get("corresponding_author") + citationCount);
+            //         // author_pos_cite_map.get("corresponding_author").push(citationCount);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("corresponding_author", yearwiseData.get(year).get("author_pos_contrib").get("corresponding_author") + 1);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("corresponding_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("corresponding_author") + citationCount);
+            //         yearwiseData.get(year).get("author_pos_cite_map").get("corresponding_author").push(citationCount);
+            //     } else if (adj_i === 0) {
+            //         position = "first_author";
+            //         // author_pos_contrib.set("first_author", author_pos_contrib.get("first_author") + 1);
+            //         // author_pos_cite_contrib.set("first_author", author_pos_cite_contrib.get("first_author") + citationCount);
+            //         // author_pos_cite_map.get("first_author").push(citationCount);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("first_author", yearwiseData.get(year).get("author_pos_contrib").get("first_author") + 1);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("first_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("first_author") + citationCount);
+            //         yearwiseData.get(year).get("author_pos_cite_map").get("first_author").push(citationCount);
+            //     } else if (adj_i === 1) {
+            //         position = "second_author";
+            //         // author_pos_contrib.set("second_author", author_pos_contrib.get("second_author") + 1);
+            //         // author_pos_cite_contrib.set("second_author", author_pos_cite_contrib.get("second_author") + citationCount);
+            //         // author_pos_cite_map.get("second_author").push(citationCount);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("second_author", yearwiseData.get(year).get("author_pos_contrib").get("second_author") + 1);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("second_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("second_author") + citationCount);
+            //         yearwiseData.get(year).get("author_pos_cite_map").get("second_author").push(citationCount);
+            //     } else if (adj_i > 1 && adj_i + 1 < author_list.length) {
+            //         position = "co_author";
+            //         // author_pos_contrib.set("co_author", author_pos_contrib.get("co_author") + 1);
+            //         // author_pos_cite_contrib.set("co_author", author_pos_cite_contrib.get("co_author") + citationCount);
+            //         // author_pos_cite_map.get("co_author").push(citationCount);
+            //         yearwiseData.get(year).get("author_pos_contrib").set("co_author", yearwiseData.get(year).get("author_pos_contrib").get("co_author") + 1);
+            //         yearwiseData.get(year).get("author_pos_cite_contrib").set("co_author", yearwiseData.get(year).get("author_pos_cite_contrib").get("co_author") + citationCount);
+            //         yearwiseData.get(year).get("author_pos_cite_map").get("co_author").push(citationCount);
+            //     } else {
+            //         console.log("IDX:", pub_idx, "Adj idx:", adj_idx, "Author:", author, "Position:", position, "Citations:", citationCount, "QScore:", qscore); //DEBUG
+            //         console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
+            //     }
 
-                // console.log("IDX:", pub_idx, "Author:", author, "Position:", position, "Citations:", citationCount, "QScore:", qscore); //DEBUG
-                // console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
-                // console.log(author_pos_cite_qscore.get(position)); //DEBUG
+            //     // console.log("IDX:", pub_idx, "Author:", author, "Position:", position, "Citations:", citationCount, "QScore:", qscore); //DEBUG
+            //     // console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
+            //     // console.log(author_pos_cite_qscore.get(position)); //DEBUG
 
-                yearwiseData.get(year).get("author_pos_cite_qscore").get(position).set(qscore, yearwiseData.get(year).get("author_pos_cite_qscore").get(position).get(qscore) + citationCount);
+            //     yearwiseData.get(year).get("author_pos_cite_qscore").get(position).set(qscore, yearwiseData.get(year).get("author_pos_cite_qscore").get(position).get(qscore) + citationCount);
 
-                // Store the author's position for this publication
-                // // publicationAuthorPositions.push(position);
-                // // publicationAuthorPositions[pub_idx] = position;
-                // publicationAuthorPositions.set(pub_idx, position);
-                return position;
-            }
+            //     // Store the author's position for this publication
+            //     // // publicationAuthorPositions.push(position);
+            //     // // publicationAuthorPositions[pub_idx] = position;
+            //     // publicationAuthorPositions.set(pub_idx, position);
+            //     return position;
+            // }
 
             function processQScore(author_pos, year, qScore) {
                 //Fetch and process QScore data
@@ -3836,48 +3947,50 @@ input::-moz-range-thumb {
             const areEqual = (a, b) =>
                 cleanAndNormalize(a).localeCompare(cleanAndNormalize(b), undefined, { sensitivity: 'base' }) === 0;
 
-            function checkAuthor(author) {
-                // Remove special characters from author names (normalize localizations), remvoe puctuation & extra spaces, and convert to lowercase
-                const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
-                // console.log("checkAuthor():", non_specialAuthor_name, author, authorName, author.toLowerCase().trim() === authorName.toLowerCase().trim(), author.toLowerCase().trim() == authorName.toLowerCase().trim()); // DEBUG
-                // console.log("checkAuthor():", non_specialAuthor_name, author, authorName, areEqual(author, authorName)); // DEBUG
-                // authorRegexes matches [first initial< wildcard *.>last name]
-                // return authorRegexes.test(non_specialAuthor_name) || non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || areEqual(author, authorName);
+            //MOVED TO WORKER THREAD
+            // function checkAuthor(author) {
+            //     // Remove special characters from author names (normalize localizations), remvoe puctuation & extra spaces, and convert to lowercase
+            //     const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
+            //     // console.log("checkAuthor():", non_specialAuthor_name, author, authorName, author.toLowerCase().trim() === authorName.toLowerCase().trim(), author.toLowerCase().trim() == authorName.toLowerCase().trim()); // DEBUG
+            //     // console.log("checkAuthor():", non_specialAuthor_name, author, authorName, areEqual(author, authorName)); // DEBUG
+            //     // authorRegexes matches [first initial< wildcard *.>last name]
+            //     // return authorRegexes.test(non_specialAuthor_name) || non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || areEqual(author, authorName);
 
-                const regexRes = [];
+            //     const regexRes = [];
 
-                authorRegexes.forEach((nameRegex) => {
-                    regexRes.push(nameRegex.test(non_specialAuthor_name));
-                });
-                regexRes.push(non_specialAuthor_name.includes(authorNameShort.toLowerCase()));
-                regexRes.push(areEqual(author, authorName));
+            //     authorRegexes.forEach((nameRegex) => {
+            //         regexRes.push(nameRegex.test(non_specialAuthor_name));
+            //     });
+            //     regexRes.push(non_specialAuthor_name.includes(authorNameShort.toLowerCase()));
+            //     regexRes.push(areEqual(author, authorName));
 
-                regexRes.push(otherNamesList.includes(normalizeString(author.trim())));
-                regexRes.push(nameComboList.includes(author.trim()));
+            //     regexRes.push(otherNamesList.includes(normalizeString(author.trim())));
+            //     regexRes.push(nameComboList.includes(author.trim()));
 
-                return regexRes.some(x => x === true);
-            }
+            //     return regexRes.some(x => x === true);
+            // }
 
-            function checkAuthorExtended(author) {
-                // Remove special characters from author names (normalize localizations), remvoe puctuation & extra spaces, and convert to lowercase
-                const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
-                // console.log("checkAuthorExtended():", non_specialAuthor_name, author, authorName, author.toLowerCase().trim() === authorName.toLowerCase().trim(), author.toLowerCase().trim() == authorName.toLowerCase().trim()); // DEBUG
-                // console.log("checkAuthorExtended():", non_specialAuthor_name, author, authorName, areEqual(author, authorName)); // DEBUG
-                // authorRegexesEx matches [first name< wildcard *.>last name]
-                // return authorRegexesEx.test(non_specialAuthor_name) || areEqual(author, authorName);
+            //MOVED TO WORKER THREAD
+            // function checkAuthorExtended(author) {
+            //     // Remove special characters from author names (normalize localizations), remvoe puctuation & extra spaces, and convert to lowercase
+            //     const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
+            //     // console.log("checkAuthorExtended():", non_specialAuthor_name, author, authorName, author.toLowerCase().trim() === authorName.toLowerCase().trim(), author.toLowerCase().trim() == authorName.toLowerCase().trim()); // DEBUG
+            //     // console.log("checkAuthorExtended():", non_specialAuthor_name, author, authorName, areEqual(author, authorName)); // DEBUG
+            //     // authorRegexesEx matches [first name< wildcard *.>last name]
+            //     // return authorRegexesEx.test(non_specialAuthor_name) || areEqual(author, authorName);
 
-                const regexRes = [];
+            //     const regexRes = [];
 
-                authorRegexesEx.forEach((name) => {
-                    regexRes.push(name.test(non_specialAuthor_name));
-                });
-                regexRes.push(areEqual(author, authorName));
+            //     authorRegexesEx.forEach((name) => {
+            //         regexRes.push(name.test(non_specialAuthor_name));
+            //     });
+            //     regexRes.push(areEqual(author, authorName));
 
-                regexRes.push(otherNamesList.includes(normalizeString(author.trim())));
-                regexRes.push(nameComboList.includes(author.trim()));
+            //     regexRes.push(otherNamesList.includes(normalizeString(author.trim())));
+            //     regexRes.push(nameComboList.includes(author.trim()));
 
-                return regexRes.some(x => x === true);
-            }
+            //     return regexRes.some(x => x === true);
+            // }
 
             const retractedPubsIdxList = [];
             let retractionProgress = 0;
@@ -3893,138 +4006,251 @@ input::-moz-range-thumb {
                     //     extended_scrape = true;
                     //     continue;
                     // }
-                    if (pub_idx > retractionProgress) {
+                   
+                    // if (pub_idx > retractionProgress) {
+                    //     //    console.log(retractedPubsIdxList.length); //DEBUG
+                    //     //wait until retraction check is complete for the specific publication
+                    //     await new Promise(resolve => setTimeout(resolve, 100));
+                    // }
+
+                    while (pub_idx > retractionProgress) {
                         //    console.log(retractedPubsIdxList.length); //DEBUG
                         //wait until retraction check is complete for the specific publication
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
                     }
 
                     if (retractedPubsIdxList.includes(pub_idx)) {
                         continue;
                     }
+                    
+                    // chrome.runtime.sendMessage({
+                    //     task: 'initialScrape',
+                    //     publication,
+                    //     authorRegexes,
+                    //     otherNamesList,
+                    //     authorNameShort,
+                    //     authorName,
+                    //     authorNameLong
+                    // });
+                    
+                    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                    //     if (request.task === 'initialScrape') {
+                    //         // Handle the processed data from the worker
+                    //         console.log('Publication processed:', request);
+                    //         // Do something with the result, e.g., update the UI
+                    //     }
+                    // });
 
-                    const authors = publication.authors;
-                    const citationCount = publication.citations;
-                    let author_list = authors.split(',').map(author => author.trim());
-                    let author_list_filtered = author_list.filter(checkAuthor);
 
-                    // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
-                    if ((uniq(author_list_filtered).length > 1 || author_list_filtered.length === 0) && authors.includes("...")) {
-                        // If multiple surnames match, fetch extended author list for clarification
-                        // urls.push(allURLs[pub_idx]);
-                        // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
-                        // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
-                        publicationData[pub_idx].authors = "Pending";
-                        extended_scrape = true;
-                        continue;
-                    }
-
-                    let authorFound = false;
-                    publicationProgress += 1;
-                    updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                    // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-
-                    author_list.forEach((author, i) => {
-                        // console.error(author); //DEBUG
-                        if (author.includes("...")) {
-                            publicationData[pub_idx].authors = "Pending";
-                            extended_scrape = true;
-                            return;
-                        }
-
-                        //1st condition in the if() is a special case where extended author info is not available and we have conflicts with the author name/surname (multiple authors with sharmas for eg, n sharma & g sharma)
-                        const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
-                        if (non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || non_specialAuthor_name.includes(authorNameLong.toLowerCase()) || areEqual(author, authorName) || otherNamesList.includes(normalizeString(author.trim()))) {
-                            // if (authorRegexes.test(non_specialAuthor_name)) {
-                            const regexInitial = [];
-                            authorRegexes.forEach((name) => {
-                                regexInitial.push(name.test(non_specialAuthor_name));
-                            });
-                            regexInitial.push(otherNamesList.includes(normalizeString(author.trim())));
-                            if (regexInitial.some(x => x === true)) {
-                                authorFound = true;
-                                // if author name is processed, add to authorNamesConsidered list after stripping punctuation and extra spaces
-                                const authorTrimmed = author.replace(/[\*\^']|_/g, "").replace(/\s+/g, " ").trim();
-
-                                if (!authorNamesConsidered.includes(authorTrimmed)) {
-                                    authorNamesConsidered.push(authorTrimmed);
-                                }
-
-                                // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
-
-                                // Process author positions based on roles (e.g., first author, co-author)
-                                publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
-                                processedPubsIdx.add(pub_idx);
-                                publicationData[pub_idx].total_authors = author_list.length;
-
-                                // firstAuthorCount = author_pos_contrib.get("first_author");
-                                // secondAuthorCount = author_pos_contrib.get("second_author");
-                                // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
-                                // coAuthorCount = author_pos_contrib.get("co_author");
-                                // firstAuthorCitationsTotal = author_pos_cite_contrib.get("first_author");
-                                // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
-                                // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
-                                // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
-
-                                let adjustedCitationCount = 0;
-                                let citationWeight = 0;
-                                let author_pos_string = "0\t0\t0\t0";
-                                switch (publicationData[pub_idx].author_pos) {
-                                    case "first_author":
-                                        author_pos_string = "1\t0\t0\t0";
-                                        adjustedCitationCount = citationCount * hCiteProp[0];
-                                        citationWeight = hCiteProp[0];
-                                        break;
-                                    case "second_author":
-                                        author_pos_string = "0\t1\t0\t0";
-                                        adjustedCitationCount = citationCount * hCiteProp[1];
-                                        citationWeight = hCiteProp[1];
-                                        break;
-                                    case "co_author":
-                                        author_pos_string = "0\t0\t1\t0";
-                                        if (publication.total_authors > 6 ) { //&& publication.authors.includes("...")
-                                            adjustedCitationCount = citationCount * 0.1;
-                                            citationWeight = 0.1;
-                                        } else {
-                                            adjustedCitationCount = citationCount * 0.25;
-                                            citationWeight = 0.25;
-                                        }
-                                        break;
-                                    case "corresponding_author":
-                                        author_pos_string = "0\t0\t0\t1";
-                                        adjustedCitationCount = citationCount * hCiteProp[3];
-                                        citationWeight = hCiteProp[3];
-                                        break;
-                                    default:
-                                        console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG    
-                                        break;
-                                }
-
-                                // console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
-
-                                tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
+                    // MOVED TO WORKER THREAD - START
+                    const pubWorker = new Worker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+                    pubWorker.postMessage({ task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                    await new Promise(res => {
+                      const onPubDone = async ({ data }) => {
+                        if (data.task === 'initialScrape' && data.type === 'working'){
+                            if(!data.authorFound && data.extended_scrape){
+                                return;
                             }
+                            publicationProgress+=1;
+                            updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                            publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
+                            processedPubsIdx.add(data.publication.pub_idx);
+                            authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                            authorRegexes = new Array(...new Set(authorRegexes));
+                            if(data.publication.year.toString().trim().length === 0){
+                                pub_no_year += 1;
+                            }
+
+                            if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                                yearwiseData.get(data.publication.year).set("total_publications", 0);
+                            }
+                            yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
+
+                      let adjustedCitationCount = 0;
+                      let citationWeight = 0;
+                      let author_pos_string = "0\t0\t0\t0";
+                      // switch (publicationData[pub_idx].author_pos) {
+                    switch (data.publication.author_pos) {
+                          case "first_author":
+                              author_pos_string = "1\t0\t0\t0";
+                              adjustedCitationCount = citationCount * hCiteProp[0];
+                              citationWeight = hCiteProp[0];
+                              break;
+                          case "second_author":
+                              author_pos_string = "0\t1\t0\t0";
+                              adjustedCitationCount = citationCount * hCiteProp[1];
+                              citationWeight = hCiteProp[1];
+                              break;
+                          case "co_author":
+                              author_pos_string = "0\t0\t1\t0";
+                              if (data.publication.total_authors > 6 ) { //&& publication.authors.includes("...")
+                                  adjustedCitationCount = citationCount * 0.1;
+                                  citationWeight = 0.1;
+                              } else {
+                                  adjustedCitationCount = citationCount * 0.25;
+                                  citationWeight = 0.25;
+                              }
+                              break;
+                          case "corresponding_author":
+                              author_pos_string = "0\t0\t0\t1";
+                              adjustedCitationCount = citationCount * hCiteProp[3];
+                              citationWeight = hCiteProp[3];
+                              break;
+                          default:
+                              //Author not found
+                              console.warn(data.publication.pub_idx, data.publication.author_pos); // DEBUG    
+                              break;
+                      }
+                      tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
+
                         }
+                        if (data.type === 'done') {
+                            authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
+                            authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
+                            //MERGE yearwiseData and data.yearwiseData Maps
+                            mergeYearwiseData(yearwiseData, data.yearwiseData);
+                            pubWorker.removeEventListener('message', onPubDone);
+                          res();
+                        }
+                        if (data.type === 'error') {
+                            console.error(`Worker error on ${data.task}:`, data.error);
+                          //   releaseSemaphore();
+                          }
+                      };
+                      pubWorker.addEventListener('message', onPubDone);
                     });
 
-                    if(publication.year.toString().trim().length === 0){
-                        pub_no_year += 1;
-                    }
+                    // MOVING TO WORKER THREAD - START
+                    // const authors = publication.authors;
+                    // const citationCount = publication.citations;
+                    // let author_list = authors.split(',').map(author => author.trim());
+                    // let author_list_filtered = author_list.filter(checkAuthor);
 
-                    if (!yearwiseData.get(publication.year).has("total_publications")) {
-                        yearwiseData.get(publication.year).set("total_publications", 0);
-                    }
-                    yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
+                    // // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
+                    // if ((uniq(author_list_filtered).length > 1 || author_list_filtered.length === 0) && authors.includes("...")) {
+                    //     // If multiple surnames match, fetch extended author list for clarification
+                    //     // urls.push(allURLs[pub_idx]);
+                    //     // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
+                    //     // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
+                    //     publicationData[pub_idx].authors = "Pending";
+                    //     extended_scrape = true;
+                    //     continue;
+                    // }
 
-                    if (!authorFound) {
-                        // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
-                        publicationData[pub_idx].authors = "Pending";
-                        extended_scrape = true;
-                    }
+                    // let authorFound = false;
+                    // publicationProgress += 1;
+                    // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                    // // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                    // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    // // author_list.forEach(async (author, i) => {
+                    // for (const [i, author] of author_list.entries()) {
+                    //     // console.error(author); //DEBUG
+                    //     if (author.includes("...")) {
+                    //         publicationData[pub_idx].authors = "Pending";
+                    //         extended_scrape = true;
+                    //         // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    //         return;
+                    //     }
+
+                    //     //1st condition in the if() is a special case where extended author info is not available and we have conflicts with the author name/surname (multiple authors with sharmas for eg, n sharma & g sharma)
+                    //     const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
+                    //     if (non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || non_specialAuthor_name.includes(authorNameLong.toLowerCase()) || areEqual(author, authorName) || otherNamesList.includes(normalizeString(author.trim()))) {
+                    //         // if (authorRegexes.test(non_specialAuthor_name)) {
+                    //         const regexInitial = [];
+                    //         authorRegexes.forEach((name) => {
+                    //             regexInitial.push(name.test(non_specialAuthor_name));
+                    //         });
+                    //         regexInitial.push(otherNamesList.includes(normalizeString(author.trim())));
+                    //         if (regexInitial.some(x => x === true)) {
+                    //             authorFound = true;
+                    //             // if author name is processed, add to authorNamesConsidered list after stripping punctuation and extra spaces
+                    //             const authorTrimmed = author.replace(/[\*\^']|_/g, "").replace(/\s+/g, " ").trim();
+
+                    //             if (!authorNamesConsidered.includes(authorTrimmed)) {
+                    //                 authorNamesConsidered.push(authorTrimmed);
+                    //             }
+
+                    //             // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
+
+                    //             // Process author positions based on roles (e.g., first author, co-author)
+                    //             publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
+                    //             processedPubsIdx.add(pub_idx);
+                    //             publicationData[pub_idx].total_authors = author_list.length;
+
+                    //             // firstAuthorCount = author_pos_contrib.get("first_author");
+                    //             // secondAuthorCount = author_pos_contrib.get("second_author");
+                    //             // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
+                    //             // coAuthorCount = author_pos_contrib.get("co_author");
+                    //             // firstAuthorCitationsTotal = author_pos_cite_contrib.get("first_author");
+                    //             // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
+                    //             // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
+                    //             // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
+
+                    //             let adjustedCitationCount = 0;
+                    //             let citationWeight = 0;
+                    //             let author_pos_string = "0\t0\t0\t0";
+                    //             switch (publicationData[pub_idx].author_pos) {
+                    //                 case "first_author":
+                    //                     author_pos_string = "1\t0\t0\t0";
+                    //                     adjustedCitationCount = citationCount * hCiteProp[0];
+                    //                     citationWeight = hCiteProp[0];
+                    //                     break;
+                    //                 case "second_author":
+                    //                     author_pos_string = "0\t1\t0\t0";
+                    //                     adjustedCitationCount = citationCount * hCiteProp[1];
+                    //                     citationWeight = hCiteProp[1];
+                    //                     break;
+                    //                 case "co_author":
+                    //                     author_pos_string = "0\t0\t1\t0";
+                    //                     if (publication.total_authors > 6 ) { //&& publication.authors.includes("...")
+                    //                         adjustedCitationCount = citationCount * 0.1;
+                    //                         citationWeight = 0.1;
+                    //                     } else {
+                    //                         adjustedCitationCount = citationCount * 0.25;
+                    //                         citationWeight = 0.25;
+                    //                     }
+                    //                     break;
+                    //                 case "corresponding_author":
+                    //                     author_pos_string = "0\t0\t0\t1";
+                    //                     adjustedCitationCount = citationCount * hCiteProp[3];
+                    //                     citationWeight = hCiteProp[3];
+                    //                     break;
+                    //                 default:
+                    //                     console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG    
+                    //                     break;
+                    //             }
+
+                    //             // console.warn(pub_idx, publicationData[pub_idx].author_pos); // DEBUG
+
+                    //             tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
+                    //         }
+                    //     }
+                    //     // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    // }//);
+
+                    // if(publication.year.toString().trim().length === 0){
+                    //     pub_no_year += 1;
+                    // }
+
+                    // if (!yearwiseData.get(publication.year).has("total_publications")) {
+                    //     yearwiseData.get(publication.year).set("total_publications", 0);
+                    // }
+                    // yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
+
+                    // if (!authorFound) {
+                    //     // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
+                    //     publicationData[pub_idx].authors = "Pending";
+                    //     extended_scrape = true;
+                    // }
+
+                    // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                // MOVING TO WORKER THREAD - END
+
 
                 } //Initial Scraping - End
 
-                // console.log("Extended Scraping"); // DEBUG
+                console.log("Extended Scraping"); // DEBUG
                 //Extended Scrape - Scrape the extended author's list for publications with insufficient author info (or multi-matching or duplicating author names)
                 // if (urls.length > 0) {
                 if (extended_scrape) {
@@ -4043,13 +4269,16 @@ input::-moz-range-thumb {
 
                     for (const [pub_idx, publication] of publicationData.entries()) {
                         // Process all the authors which are pending. Pending authors require scraping of extended author information from the publication URL/page
-                        if (pub_idx > retractionProgress) {
+                        // if (pub_idx > retractionProgress) {
+                        while (pub_idx > retractionProgress) {
                             // console.log(retractedPubsIdxList.length); //DEBUG
                             //wait until retraction check is complete for the specific publication
                             await new Promise(resolve => setTimeout(resolve, 100));
+                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                         }
 
                         if (retractedPubsIdxList.includes(pub_idx)) {
+                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                             continue;
                         }
 
@@ -4057,145 +4286,231 @@ input::-moz-range-thumb {
                             publication.authors = authorsListExt[authorIndexExt] || "Authors not found";
                             authorIndexExt++;
                         } else {
+                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                             continue;
                         }
 
                         if (processedPubsIdx.has(pub_idx)) {
+                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                             continue;
                         }
 
-                        const authors = publication.authors;
-                        const citationCount = publication.citations;
-                        let extended_check = true;
-                        let author_list = authors.split(',').map(author => author.trim());
-                        let author_list_filtered = author_list.filter(checkAuthorExtended);
-
-                        if (author_list_filtered.length === 0) {
-                            // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
-                            // In a lot of cases, the full names are not retrieved even from the extended author information so we revert back to simple author name matching to include them
-                            // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
-                            author_list_filtered = author_list.filter(checkAuthor);
-                            extended_check = false;
-                            // console.warn("simple:", pub_idx, author_list_filtered); // DEBUG
-                        }
-
-                        const regexToUse = extended_check ? authorRegexesEx : authorRegexes;
-
-                        // publicationProgress += 1;
-                        // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-
-                        if (author_list_filtered.length === 0 || publication.authors === "Authors not found") {
-                            // console.warn("extended - 1",pub_idx, publication.title, publication.authors); // DEBUG
-                            // publicationAuthorPositions.set(pub_idx, "NA");
-                            // console.log("Before:", pub_author_no_match); //DEBUG
-                            // pub_author_no_match += 1;
-                            // console.log(publication.authors); //DEBUG
-                            tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${author_list_filtered.length}\t${publication.year}\t${publication.citations}\t0\t0\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t0\t0\t0\t0\t0\n`; // Add each publication in a new row
-                            // console.log("After:", pub_author_no_match); //DEBUG
-                        } else {
-                            publicationProgress += 1;
-                            updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                            // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-
-                            let authorFound = false;
-                            author_list.forEach((author, i) => {
-                                const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
-                                if (non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || non_specialAuthor_name.includes(authorNameLong.toLowerCase()) || areEqual(author, authorName) || otherNamesList.includes(normalizeString(author.trim()))) {
-                                    // if (regexToUse.test(non_specialAuthor_name)) {
-                                    const regexExtended = [];
-                                    regexToUse.forEach((name) => {
-                                        regexExtended.push(name.test(non_specialAuthor_name));
-                                    });
-                                    // authorRegexes.forEach((name) => {
-                                    //     regexExtended.push(name.test(non_specialAuthor_name));
-                                    // });
-                                    // authorRegexesEx.forEach((name) => {
-                                    //     regexExtended.push(name.test(non_specialAuthor_name));
-                                    // });
-                                    regexExtended.push(otherNamesList.includes(normalizeString(author.trim())));
-
-                                    if (regexExtended.some(x => x === true)) {
-                                        authorFound = true;
-                                        processedPubsIdx.add(pub_idx);
-                                        //if author name is processed, add to authorNamesConsidered list after stripping punctuation and extra spaces
-                                        const authorTrimmed = author.replace(/[^\w\s\']|_/g, "").replace(/\s+/g, " ").trim();
-                                        if (!authorNamesConsidered.includes(authorTrimmed)) {
-                                            authorNamesConsidered.push(authorTrimmed);
-                                        }
-
-                                        // console.warn("extended - FOUND",pub_idx, publication.title, publication.authors); // DEBUG
-
-                                        // Process author positions based on roles (e.g., first author, co-author)
-                                        publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
-
-                                        publicationData[pub_idx].total_authors = author_list.length;
-
-                                        let adjustedCitationCount = 0;
-                                        let citationWeight = 0;
-
-                                        // firstAuthorCount = author_pos_contrib.get("first_author");
-                                        // secondAuthorCount = author_pos_contrib.get("second_author");
-                                        // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
-                                        // coAuthorCount = author_pos_contrib.get("co_author");
-                                        // firstAuthorCitationsTotal = author_pos_cite_contrib.get("first_author");
-                                        // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
-                                        // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
-                                        // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
-
-                                        let author_pos_string = "0\t0\t0\t0";
-                                        switch (publicationData[pub_idx].author_pos) {
-                                            case "first_author":
-                                                author_pos_string = "1\t0\t0\t0";
-                                                adjustedCitationCount = citationCount * hCiteProp[0];
-                                                citationWeight = hCiteProp[0];
-                                                break;
-                                            case "second_author":
-                                                author_pos_string = "0\t1\t0\t0";
-                                                adjustedCitationCount = citationCount * hCiteProp[1];
-                                                citationWeight = hCiteProp[1];
-                                                break;
-                                            case "co_author":
-                                                author_pos_string = "0\t0\t1\t0";
-                                                if (publication.total_authors > 6) { // && publication.authors.includes("...")
-                                                    adjustedCitationCount = citationCount * 0.1;
-                                                    citationWeight = 0.1;
-                                                } else {
-                                                    adjustedCitationCount = citationCount * 0.25;
-                                                    citationWeight = 0.25;
-                                                }
-                                                break;
-                                            case "corresponding_author":
-                                                author_pos_string = "0\t0\t0\t1";
-                                                adjustedCitationCount = citationCount * hCiteProp[3];
-                                                citationWeight = hCiteProp[3];
-                                                break;
-                                        }
-
-                                        tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
-                                    }
+                        const pubWorker = new Worker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+                        pubWorker.postMessage({ task: 'extendedScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                        await new Promise(res => {
+                          const onPubDone = async ({ data }) => {
+                            if (data.task === 'extendedScrape' && data.type === 'working'){
+                                if(!data.authorFound){
+                                    pub_author_no_match += 1;
+                                    // return;
                                 }
-                            });
+                                publicationProgress += 1;
+                                updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                                // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                                publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
+                                authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                                authorRegexes = new Array(...new Set(authorRegexes));
+                                authorRegexesEx = [...authorRegexesEx, ...data.authorRegexesEx];
+                                authorRegexesEx = new Array(...new Set(authorRegexesEx));
+                                if(data.publication.year.toString().trim().length === 0){
+                                    pub_no_year += 1;
+                                }
+                  
+                                if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                                    yearwiseData.get(data.publication.year).set("total_publications", 0);
+                                }
+                                yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
+                                
+                                let adjustedCitationCount = 0;
+                                let citationWeight = 0;
+                                let author_pos_string = "0\t0\t0\t0";
 
-                            if(publication.year.toString().trim().length === 0){
-                                pub_no_year += 1;
+                                switch (data.publication.author_pos) {
+                                    case "first_author":
+                                        author_pos_string = "1\t0\t0\t0";
+                                        adjustedCitationCount = citationCount * hCiteProp[0];
+                                        citationWeight = hCiteProp[0];
+                                        break;
+                                    case "second_author":
+                                        author_pos_string = "0\t1\t0\t0";
+                                        adjustedCitationCount = citationCount * hCiteProp[1];
+                                        citationWeight = hCiteProp[1];
+                                        break;
+                                    case "co_author":
+                                        author_pos_string = "0\t0\t1\t0";
+                                        if (data.publication.total_authors > 6) { // && publication.authors.includes("...")
+                                            adjustedCitationCount = citationCount * 0.1;
+                                            citationWeight = 0.1;
+                                        } else {
+                                            adjustedCitationCount = citationCount * 0.25;
+                                            citationWeight = 0.25;
+                                        }
+                                        break;
+                                    case "corresponding_author":
+                                        author_pos_string = "0\t0\t0\t1";
+                                        adjustedCitationCount = citationCount * hCiteProp[3];
+                                        citationWeight = hCiteProp[3];
+                                        break;
+                                }
+      
+
+                                tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
                             }
-
-                            if (!yearwiseData.get(publication.year).has("total_publications")) {
-                                yearwiseData.get(publication.year).set("total_publications", 0);
+                            if (data.type === 'done') {
+                                authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
+                                authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
+                                //MERGE yearwiseData and data.yearwiseData Maps
+                                mergeYearwiseData(yearwiseData, data.yearwiseData);
+                                pubWorker.removeEventListener('message', onPubDone);
+                              res();
                             }
-                            yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
+                            if (data.type === 'error') {
+                                console.error(`Worker error on ${data.task}:`, data.error);
+                              //   releaseSemaphore();
+                              }
+                          };
+                          pubWorker.addEventListener('message', onPubDone);
+                        });
 
-                            if (!authorFound) {
-                                // console.warn("extended - 2", pub_idx, publication.title, publication.authors); // DEBUG
-                                // publicationAuthorPositions.set(pub_idx, "NA");
-                                // console.log("Before:", pub_author_no_match); //DEBUG
-                                pub_author_no_match += 1;
-                                // console.log("After:", pub_author_no_match); //DEBUG
-                            }
-                        }
+                        //MOVED TO WORKER THREAD - START
+                        // const authors = publication.authors;
+                        // const citationCount = publication.citations;
+                        // let extended_check = true;
+                        // let author_list = authors.split(',').map(author => author.trim());
+                        // let author_list_filtered = author_list.filter(checkAuthorExtended);
 
+                        // if (author_list_filtered.length === 0) {
+                        //     // console.warn("extended:",pub_idx, author_list_filtered); // DEBUG
+                        //     // In a lot of cases, the full names are not retrieved even from the extended author information so we revert back to simple author name matching to include them
+                        //     // console.warn(pub_idx, publication.title, publication.authors); // DEBUG
+                        //     author_list_filtered = author_list.filter(checkAuthor);
+                        //     extended_check = false;
+                        //     // console.warn("simple:", pub_idx, author_list_filtered); // DEBUG
+                        // }
+
+                        // const regexToUse = extended_check ? authorRegexesEx : authorRegexes;
+
+                        // // publicationProgress += 1;
+                        // // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+
+                        // if (author_list_filtered.length === 0 || publication.authors === "Authors not found") {
+                        //     // console.warn("extended - 1",pub_idx, publication.title, publication.authors); // DEBUG
+                        //     // publicationAuthorPositions.set(pub_idx, "NA");
+                        //     // console.log("Before:", pub_author_no_match); //DEBUG
+                        //     // pub_author_no_match += 1;
+                        //     // console.log(publication.authors); //DEBUG
+                        //     tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${author_list_filtered.length}\t${publication.year}\t${publication.citations}\t0\t0\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t0\t0\t0\t0\t0\n`; // Add each publication in a new row
+                        //     // console.log("After:", pub_author_no_match); //DEBUG
+                        // } else {
+                        //     publicationProgress += 1;
+                        //     updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                        //     // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                        //     await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                        //     let authorFound = false;
+                        //     // author_list.forEach(async (author, i) => {
+                        //     for (const [i, author] of author_list.entries()) {
+                        //         const non_specialAuthor_name = replaceSpecialChars(normalizeString(author)).toLowerCase();
+                        //         if (non_specialAuthor_name.includes(authorNameShort.toLowerCase()) || non_specialAuthor_name.includes(authorNameLong.toLowerCase()) || areEqual(author, authorName) || otherNamesList.includes(normalizeString(author.trim()))) {
+                        //             // if (regexToUse.test(non_specialAuthor_name)) {
+                        //             const regexExtended = [];
+                        //             regexToUse.forEach((name) => {
+                        //                 regexExtended.push(name.test(non_specialAuthor_name));
+                        //             });
+                        //             // authorRegexes.forEach((name) => {
+                        //             //     regexExtended.push(name.test(non_specialAuthor_name));
+                        //             // });
+                        //             // authorRegexesEx.forEach((name) => {
+                        //             //     regexExtended.push(name.test(non_specialAuthor_name));
+                        //             // });
+                        //             regexExtended.push(otherNamesList.includes(normalizeString(author.trim())));
+
+                        //             if (regexExtended.some(x => x === true)) {
+                        //                 authorFound = true;
+                        //                 processedPubsIdx.add(pub_idx);
+                        //                 //if author name is processed, add to authorNamesConsidered list after stripping punctuation and extra spaces
+                        //                 const authorTrimmed = author.replace(/[^\w\s\']|_/g, "").replace(/\s+/g, " ").trim();
+                        //                 if (!authorNamesConsidered.includes(authorTrimmed)) {
+                        //                     authorNamesConsidered.push(authorTrimmed);
+                        //                 }
+
+                        //                 // console.warn("extended - FOUND",pub_idx, publication.title, publication.authors); // DEBUG
+
+                        //                 // Process author positions based on roles (e.g., first author, co-author)
+                        //                 publicationData[pub_idx].author_pos = processAuthorPositions(author, author_list, citationCount, i, publication.journalRanking, publication.year, pub_idx);
+
+                        //                 publicationData[pub_idx].total_authors = author_list.length;
+
+                        //                 let adjustedCitationCount = 0;
+                        //                 let citationWeight = 0;
+
+                        //                 // firstAuthorCount = author_pos_contrib.get("first_author");
+                        //                 // secondAuthorCount = author_pos_contrib.get("second_author");
+                        //                 // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
+                        //                 // coAuthorCount = author_pos_contrib.get("co_author");
+                        //                 // firstAuthorCitationsTotal = author_pos_cite_contrib.get("first_author");
+                        //                 // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
+                        //                 // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
+                        //                 // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
+
+                        //                 let author_pos_string = "0\t0\t0\t0";
+                        //                 switch (publicationData[pub_idx].author_pos) {
+                        //                     case "first_author":
+                        //                         author_pos_string = "1\t0\t0\t0";
+                        //                         adjustedCitationCount = citationCount * hCiteProp[0];
+                        //                         citationWeight = hCiteProp[0];
+                        //                         break;
+                        //                     case "second_author":
+                        //                         author_pos_string = "0\t1\t0\t0";
+                        //                         adjustedCitationCount = citationCount * hCiteProp[1];
+                        //                         citationWeight = hCiteProp[1];
+                        //                         break;
+                        //                     case "co_author":
+                        //                         author_pos_string = "0\t0\t1\t0";
+                        //                         if (publication.total_authors > 6) { // && publication.authors.includes("...")
+                        //                             adjustedCitationCount = citationCount * 0.1;
+                        //                             citationWeight = 0.1;
+                        //                         } else {
+                        //                             adjustedCitationCount = citationCount * 0.25;
+                        //                             citationWeight = 0.25;
+                        //                         }
+                        //                         break;
+                        //                     case "corresponding_author":
+                        //                         author_pos_string = "0\t0\t0\t1";
+                        //                         adjustedCitationCount = citationCount * hCiteProp[3];
+                        //                         citationWeight = hCiteProp[3];
+                        //                         break;
+                        //                 }
+
+                        //                 tsvContent += `${publication.index}\t${publication.title}\t${publication.authors}\t${publication.authors.includes("...") ? `${publication.total_authors - 1}+` : publication.total_authors}\t${publication.year}\t${publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${publication.journalTitle}\t${publication.journalRanking}\t${publication.impact_factor}\t1\t${author_pos_string}\n`; // Add each publication in a new row
+                        //             }
+                        //         }
+                        //         // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                        //     }//);
+
+                        //     if(publication.year.toString().trim().length === 0){
+                        //         pub_no_year += 1;
+                        //     }
+
+                        //     if (!yearwiseData.get(publication.year).has("total_publications")) {
+                        //         yearwiseData.get(publication.year).set("total_publications", 0);
+                        //     }
+                        //     yearwiseData.get(publication.year).set("total_publications", yearwiseData.get(publication.year).get("total_publications") + 1);
+
+                        //     if (!authorFound) {
+                        //         // console.warn("extended - 2", pub_idx, publication.title, publication.authors); // DEBUG
+                        //         // publicationAuthorPositions.set(pub_idx, "NA");
+                        //         // console.log("Before:", pub_author_no_match); //DEBUG
+                        //         pub_author_no_match += 1;
+                        //         // console.log("After:", pub_author_no_match); //DEBUG
+                        //     }
+                        // }
+
+                        // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                     }
                 } //Extended Scrape - End
+
+                //MOVED TO WORKER THREAD - END
 
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
@@ -4208,13 +4523,14 @@ input::-moz-range-thumb {
                     publicationProgress += 1;
                     updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
                     // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
+                    await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 });
                 return true;
             }
 
             async function checkRetractedPublications(publicationProgress) {
                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
-
+                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 retractionWatchDB = await getRetractionWatchDB();
                 // console.log(retractionWatchDB); //DEBUG
                 // Check if the publication is retracted
@@ -4222,44 +4538,91 @@ input::-moz-range-thumb {
                 // let retractionProgress = 0;
                 // let ele_index = 0;
                 // for(const [index, element] of publicationData.entries()) {
-                publicationData.forEach(async (element, index) => {
-                    var isPubRetracted = false;
-                    const pubTitle = publicationData[index].title;
-                    // const pubTitle = element.title;
-                    const cleanPubTitle = pubTitle.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
-                    retractionProgress += 1;
-
-                    retractionWatchDB.map(async (entry) => {
-                        // retractionWatchDB.forEach(async (entry) => {
-                        if (isPubRetracted) {
-                            // setTimeout(updateLoadingBar, 20, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
-                            return;
+                // publicationData.forEach(async (element, index) => {
+                for(const [index, element] of publicationData.entries()) {
+                    // publicationData.map(async (element, index) => {
+    
+                    // chrome.runtime.sendMessage({
+                    //     task: 'checkRetraction',
+                    //     element
+                    // });
+                    
+                    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                    //     if (request.task === 'checkRetraction') {
+                    //         // Handle the processed data from the worker
+                    //         console.log('checkRetraction processed:', request);
+                    //         // Do something with the result, e.g., update the UI
+                    //     }
+                    // });
+                    //MOVED to WORKER THREAD
+                    const retractionWorker = new Worker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
+                    retractionWorker.postMessage({ task: 'checkRetraction', batch: [element], retractionWatchDB });
+                    await new Promise(res => {
+                      const onPubDone = async ({ data }) => {
+                        if (data.task === 'checkRetraction' && data.type === 'working'){
+                            retractionProgress += 1;
+                            updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
+                            // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
+                            // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
+                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                            if(data.isPubRetracted) {
+                                retractedPubsIdxList.push(data.publication.index);
+                                retractedPubsCount++;
+                            }
                         }
-                        const cleanEntryTitle = entry.Title.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
-                        if (cleanPubTitle === cleanEntryTitle) {
-                            // console.log("Retracted Publication:", pubTitle, entry.Title); //DEBUG
-                            retractedPubsIdxList.push(index);
-                            retractedPubsCount++;
-                            isPubRetracted = true;
+                        if (data.type === 'done') {
+          
+                            retractionWorker.removeEventListener('message', onPubDone);
+                          res();
                         }
-                        // else {
-                        //     const entryRegExp = '.*^' + cleanEntryTitle + '$.*';
-                        //     const retractMatch = cleanPubTitle.match(entryRegExp);
-                        //     if (retractMatch != null) {
-                        //         // console.log(retractMatch);
-                        //         console.log("Retracted Publication:", pubTitle, entry.Title); //DEBUG
-                        //         retractedPubsIdxList.push(index);
-                        //         retractedPubsCount++;
-                        //         isPubRetracted = true;
-                        //     }
-                        // }
+                        if (data.type === 'error') {
+                            console.error(`Worker error on ${data.task}:`, data.error);
+                          //   releaseSemaphore();
+                          }
+                      };
+                      retractionWorker.addEventListener('message', onPubDone);
                     });
 
-                    updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
-                    // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
-                    // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
 
-                });
+                    //MOVING to WORKER THREAD
+                    // var isPubRetracted = false;
+                    // const pubTitle = publicationData[index].title;
+                    // // const pubTitle = element.title;
+                    // const cleanPubTitle = pubTitle.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
+                    // retractionProgress += 1;
+                    // retractionWatchDB.map(async (entry) => {
+                    //     // retractionWatchDB.forEach(async (entry) => {
+                    //     if (isPubRetracted) {
+                    //         // setTimeout(updateLoadingBar, 20, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
+                    //         return;
+                    //     }
+                    //     const cleanEntryTitle = entry.Title.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:}=\_\'\"\(\)\[\]\{\}\+-`~)]/g, '').replace(/\s+/g, '').replace(/retracted/g, '').replace(/retraction/g, '');
+                    //     if (cleanPubTitle === cleanEntryTitle) {
+                    //         // console.log("Retracted Publication:", pubTitle, entry.Title); //DEBUG
+                    //         retractedPubsIdxList.push(index);
+                    //         retractedPubsCount++;
+                    //         isPubRetracted = true;
+                    //     }
+                    //     // else {
+                    //     //     const entryRegExp = '.*^' + cleanEntryTitle + '$.*';
+                    //     //     const retractMatch = cleanPubTitle.match(entryRegExp);
+                    //     //     if (retractMatch != null) {
+                    //     //         // console.log(retractMatch);
+                    //     //         console.log("Retracted Publication:", pubTitle, entry.Title); //DEBUG
+                    //     //         retractedPubsIdxList.push(index);
+                    //     //         retractedPubsCount++;
+                    //     //         isPubRetracted = true;
+                    //     //     }
+                    //     // }
+                    //     // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    // });
+                    // updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
+                    // // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
+                    // // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
+                    // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+
+                }// for - End);
+                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 return true;
             }
 
@@ -4390,12 +4753,12 @@ input::-moz-range-thumb {
                 //     console.warn("Author position not found for publication:", publicationData[index].title);
                 //     console.warn(element);
                 // }
-
+                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             });
 
             updateLoadingBar(99, "Processing Retractions... ", true);
             // setTimeout(updateLoadingBar, 20, 0, "Processing Retractions... ");
-
+            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             // const csvPath = chrome.runtime.getURL("data/retraction_watch_stripped.csv");
             // const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
 
@@ -4412,6 +4775,7 @@ input::-moz-range-thumb {
                 RETRACTED</div></div>
             `);
                 gsGrayElement.insertAdjacentHTML('afterend', retractionHTML);
+                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             });
 
 
@@ -4840,9 +5204,12 @@ input::-moz-range-thumb {
         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
             console.log(release_response.status);  // Should log "Semaphore released" 
         });
-    } finally {
-
-    }
+    } 
+    // finally {
+    //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
+    //         console.log(release_response.status);  // Should log "Semaphore released" 
+    //     });
+    // }
 
     return true;
 }

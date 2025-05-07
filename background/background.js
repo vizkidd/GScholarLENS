@@ -9,10 +9,10 @@
 // csp_hash_map.set('chart.js', 'sha256-0+DXJnZYYnCV/yDxaMgIC0sT3/RpBknIPggiDOgy+zE=');
 // csp_hash_map.set('xlsx.full.min.js', 'sha256-FPSC3XUkFoe869hAfbpIsSmcnOhpTNw6gVBOq3D00pk=');
 // csp_hash_map.set('purify.min.js', 'sha256-e2sErBT4UHV6xsNfL+dFY0Osqxg6flTZU+W8cH6t3WE=');
-// csp_hash_map.set('content.js', 'sha256-5BmD2Qp6gTru4qIdwvi6nosgxolpYrjw/uiCgjqM9Aw=');
+// csp_hash_map.set('GScholarLENS.js', 'sha256-5BmD2Qp6gTru4qIdwvi6nosgxolpYrjw/uiCgjqM9Aw=');
 
 // // + PROD
-// csp_hash_map.set('content.min.js', '3b647d5455595294cdf63c1060a45e88721ab485f68a3a91960d32de5d54f8b1-content.min.js');
+// csp_hash_map.set('GScholarLENS.min.js', '3b647d5455595294cdf63c1060a45e88721ab485f68a3a91960d32de5d54f8b1-GScholarLENS.min.js');
 
 // await chrome.storage.local.set({ "csp_hash_map": csp_hash_map });
 
@@ -25,7 +25,7 @@
 //         await setInitializationStatus(false);
 //     })();
 // });
-
+// import { Worker } from './node_modules/cluster/lib/worker.js';
 async function setInitializationStatus(status) {
     return new Promise(resolve => {
         chrome.storage.local.set({ "isInitialized": status }, resolve);
@@ -109,6 +109,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true; // Indicate that response is asynchronous
 });
+
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//     if (request.task === 'initialScrape') {
+//         const pubWorker = new Worker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+//         pubWorker.postMessage({ task: 'initialScrape', batch: request.publication, authorRegexes: request.authorRegexes, otherNamesList: request.otherNamesList, authorNameShort: request.authorNameShort, authorName: request.authorName, authorNameLong: request.authorNameLong });
+//         pubWorker.onmessage = (event) => {
+//             // Send the result back to the content script
+//             chrome.tabs.sendMessage(sender.tab.id, { data: event.data });
+//         };
+//     }else if (request.task === 'checkRetraction') {
+//         const retractionWorker = new Worker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
+//         retractionWorker.postMessage({ task: 'checkRetraction', batch: request.publication });
+//         retractionWorker.onmessage = (event) => {
+//             // Send the result back to the content script
+//             chrome.tabs.sendMessage(sender.tab.id, { data: event.data });
+//         };
+//     }
+//     return true; // Indicate that response is asynchronous
+// });
 
 onbeforeunload = (event) => {
     // alert('Releasing semaphore before unloading...');
@@ -375,7 +394,7 @@ if (typeof importScripts === "function") {
     console.error("No valid environment for loading scripts.");
 }
 
-// This is the old default loadScript which works in most cases in content.js
+// This is the old default loadScript which works in most cases in GScholarLENS.js
 // function loadScript(url, callback) {
 //     // Adding the script tag to the head as suggested before
 //     var head = document.head;
@@ -412,7 +431,7 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 // chrome.action.onClicked.addListener((tab) => {
 //     chrome.scripting.executeScript({
 //         target: { tabId: tab.id },
-//         files: ['content/content.js']  // Inject content.js into the active tab
+//         files: ['content/GScholarLENS.js']  // Inject GScholarLENS.js into the active tab
 //         // func: createButton
 //     });
 // });
@@ -420,7 +439,7 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 chrome.action.onClicked.addListener((tab) => {
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content/content.js']
+      files: ['content/GScholarLENS.js']  // Inject GScholarLENS.js into the active tab
     }).catch(err => {
       console.error("Injection failed:", err);
     });
@@ -448,7 +467,7 @@ chrome.action.onClicked.addListener((tab) => {
 // function injectScript(tabId) {
 //   chrome.scripting.executeScript({
 //     target: { tabId: tabId },
-//     files: ['content/content.js']
+//     files: ['content/GScholarLENS.js']
 //   }).catch(err => {
 //     console.error('Injection failed:', err);
 //   });
