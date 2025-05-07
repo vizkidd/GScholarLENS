@@ -1,21 +1,21 @@
-// Load the font using JavaScript
-const fontPath = chrome.runtime.getURL("fonts/SchibstedGrotesk.ttf");
-const schibsted_grotesk = new FontFace('schibsted-grotesk', `url(${fontPath})`);
-// let csp_hash_map;
-let excelData = false;
-let retractionWatchDB = false;
-let profileScraped = false;
+// // Load the font using JavaScript
+// const fontPath = chrome.runtime.getURL("fonts/SchibstedGrotesk.ttf");
+// const schibsted_grotesk = new FontFace('schibsted-grotesk', `url(${fontPath})`);
+// // let csp_hash_map;
+// let excelData = false;
+// let retractionWatchDB = false;
+// let profileScraped = false;
 
-// Create TSV content
-let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
+// // Create TSV content
+// let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
 
-// Add the font to the document once it's loaded
-schibsted_grotesk.load().then((loadedFont) => {
-    document.fonts.add(loadedFont);
-    document.body.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
-}).catch((error) => {
-    console.error('Font failed to load:', error);
-});
+// // Add the font to the document once it's loaded
+// schibsted_grotesk.load().then((loadedFont) => {
+//     document.fonts.add(loadedFont);
+//     document.body.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+// }).catch((error) => {
+//     console.error('Font failed to load:', error);
+// });
 
 // Function to load scripts dynamically and insert them into the page with a callback
 async function loadScript(url, callback, id) {
@@ -97,143 +97,144 @@ async function loadScript(url, callback, id) {
 //   };
 // }
 
-function releaseSemaphoreAndReload() {
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-      console.log(resp.status);
-      window.location.reload();
-    });
-  }
 
-  window.addEventListener('error', event => {
-    console.error('Uncaught error:', event);
-    // releaseSemaphoreAndReload();
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
-      });
-  }, true);  // useCapture=true to catch as early as possible
+//MOVED to init.js
+// function releaseSemaphoreAndReload() {
+//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+//       console.log(resp.status);
+//       window.location.reload();
+//     });
+//   }
+//   window.addEventListener('error', event => {
+//     console.error('Uncaught error:', event);
+//     // releaseSemaphoreAndReload();
+//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+//         console.log(resp.status);
+//       });
+//   }, true);  // useCapture=true to catch as early as possible
   
-  // 3) Catch unhandled promise rejections
-  window.addEventListener('unhandledrejection', event => {
-    console.error('Unhandled rejection:', event);
-    // releaseSemaphoreAndReload();
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
-      });
-  }, true);
+//   // 3) Catch unhandled promise rejections
+//   window.addEventListener('unhandledrejection', event => {
+//     console.error('Unhandled rejection:', event);
+//     // releaseSemaphoreAndReload();
+//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+//         console.log(resp.status);
+//       });
+//   }, true);
+//   window.addEventListener('onbeforeunload', () => { //unload
+//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//             console.log(response.status);  // Should log "Semaphore released"
+//         });
+//     }, true); // useCapture=true to catch as early as possible
 
-  window.addEventListener('onbeforeunload', () => { //unload
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released" 
-        });
-    }, true); // useCapture=true to catch as early as possible
 
+
+//MOVED to init.js
 // This async function is like "main()" for each tab/content script.
 // It runs automatically to load the excel data from local storage and create the button.
 // It does a preliminary test for the presence of a CAPTCHA page.
-createButton();
-chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
-    console.log(response.status);
+// createButton();
+// chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
+//     console.log(response.status);
+//     (async function () {
+//         const currentTabURL = window.location.href.toString();
+//         const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
+//         if (captchaTest.status != 200) {
+//             // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
+//             //     console.log(release_response.status);  // Should log "Semaphore released" 
+//             //     window.location.reload();
+//             // });
+//             releaseSemaphoreAndReload();
+//         }
+//         // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
+//         excelData = await getJCRExcel();
+//         retractionWatchDB = await getRetractionWatchDB();
+//         // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
+//         enableButton();
+//     })();
+// });
+// function enableButton() {
+//     const button = document.getElementById("inject-content-button");
+//     button.textContent = "Run GScholarLENS";
+//     button.disabled = false;
+//     button.textContent.color = "white";
+//     button.style.width = "fit-content";
+//     button.style.display = "flex"; // Flexbox for proper alignment
+//     button.style.alignItems = "center"; // Vertically center text and icon
+//     button.style.gap = "5px"; // Space between icon and text
+//     // button.style.padding = "12px 20px"; // Increase padding for a larger button
+//     button.style.fontSize = "16px"; // Larger font size
+//     // button.style.fontWeight = "bold"; // Bold text
+//     button.style.color = "white"; // White text
+//     // button.style.fontStyle = "italic"; // Italicized text
+//     button.style.marginTop = "20px";
+//     button.style.marginBottom = "10px";
+//     button.style.zIndex = "1000";
+//     button.style.borderRadius = "7px";
+//     button.style.cursor = "pointer";
+//     button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
+//     button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
+//     button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
+//     // Add an icon to the button
+//     const icon = document.createElement("img");
+//     icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+//     icon.alt = "GScholarLENS";
+//     icon.style.height = "20px"; // Adjust icon size
+//     icon.style.width = "20px";
+//     icon.style.objectFit = "contain";
+//     // Add the icon and text to the button
+//     button.prepend(icon);
+// }
 
-    (async function () {
-        const currentTabURL = window.location.href.toString();
-        const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
-        if (captchaTest.status != 200) {
-            // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-            //     console.log(release_response.status);  // Should log "Semaphore released" 
-            //     window.location.reload();
-            // });
-            releaseSemaphoreAndReload();
-        }
-        // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
-        excelData = await getJCRExcel();
-        retractionWatchDB = await getRetractionWatchDB();
-        // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
-        enableButton();
-    })();
-});
-
-function enableButton() {
-    const button = document.getElementById("inject-content-button");
-    button.textContent = "Run GScholarLENS";
-    button.disabled = false;
-    button.textContent.color = "white";
-    button.style.width = "fit-content";
-    button.style.display = "flex"; // Flexbox for proper alignment
-    button.style.alignItems = "center"; // Vertically center text and icon
-    button.style.gap = "5px"; // Space between icon and text
-    // button.style.padding = "12px 20px"; // Increase padding for a larger button
-    button.style.fontSize = "16px"; // Larger font size
-    // button.style.fontWeight = "bold"; // Bold text
-    button.style.color = "white"; // White text
-    // button.style.fontStyle = "italic"; // Italicized text
-    button.style.marginTop = "20px";
-    button.style.marginBottom = "10px";
-    button.style.zIndex = "1000";
-    button.style.borderRadius = "7px";
-    button.style.cursor = "pointer";
-    button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
-    button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
-    button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
-
-    // Add an icon to the button
-    const icon = document.createElement("img");
-    icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-    icon.alt = "GScholarLENS";
-    icon.style.height = "20px"; // Adjust icon size
-    icon.style.width = "20px";
-    icon.style.objectFit = "contain";
-
-    // Add the icon and text to the button
-    button.prepend(icon);
-}
-
+////MOVED to init.js
 //Credit : https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
-const cyrb53 = (str, seed = 0) => {
-    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for (let i = 0, ch; i < str.length; i++) {
-        ch = str.charCodeAt(i);
-        h1 = Math.imul(h1 ^ ch, 2654435761);
-        h2 = Math.imul(h2 ^ ch, 1597334677);
-    }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+// const cyrb53 = (str, seed = 0) => {
+//     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+//     for (let i = 0, ch; i < str.length; i++) {
+//         ch = str.charCodeAt(i);
+//         h1 = Math.imul(h1 ^ ch, 2654435761);
+//         h2 = Math.imul(h2 ^ ch, 1597334677);
+//     }
+//     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+//     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+//     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+//     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 
-    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-};
+//     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+// };
 
-async function fetchWithSessionCache(key, url, refetch = false) {
+//MOVED to init.js
+// async function fetchWithSessionCache(key, url, refetch = false) {
 
-    if (!key || key.length === 0) {
-        // console.warn("Empty Cache key");
-        return null;
-    }
+//     if (!key || key.length === 0) {
+//         // console.warn("Empty Cache key");
+//         return null;
+//     }
 
-    const hash_key = cyrb53(key);
-    const cachedData = await sessionStorage.getItem(hash_key);
-    if (cachedData && !refetch) {
-        // console.log("Cache hit:", key);
-        // return JSON.parse(cachedData);
-        return cachedData;
-    }
+//     const hash_key = cyrb53(key);
+//     const cachedData = await sessionStorage.getItem(hash_key);
+//     if (cachedData && !refetch) {
+//         // console.log("Cache hit:", key);
+//         // return JSON.parse(cachedData);
+//         return cachedData;
+//     }
 
-    // console.warn("Cache miss ("+ hash_key +") :", key);
-    try {
-        const response = await fetch(url);
-        // const data = await response.json();
-        // sessionStorage.setItem(key, JSON.stringify(data)); // Save to sessionStorage
-        // return data;
-        if (response && response.status == 200) {
-            await sessionStorage.setItem(hash_key, response); // Save to sessionStorage
-        }
-        return response;
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        return null;
-    }
-    return true;
-}
+//     // console.warn("Cache miss ("+ hash_key +") :", key);
+//     try {
+//         const response = await fetch(url);
+//         // const data = await response.json();
+//         // sessionStorage.setItem(key, JSON.stringify(data)); // Save to sessionStorage
+//         // return data;
+//         if (response && response.status == 200) {
+//             await sessionStorage.setItem(hash_key, response); // Save to sessionStorage
+//         }
+//         return response;
+//     } catch (error) {
+//         console.error("Error fetching data:", error);
+//         return null;
+//     }
+//     return true;
+// }
 
 /**
  * Returns a random number between min (inclusive) and max (exclusive)
@@ -255,220 +256,215 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-const replaceSpecialChars = (str) => {
-    const charMap = {
-        'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a', 'æ': 'ae', 'ā': 'a',
-        'ç': 'c', 'ć': 'c', 'ĉ': 'c', 'č': 'c', 'ç': 'c', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-        'ē': 'e', 'ė': 'e', 'ę': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i',
-        'į': 'i', 'ı': 'i', 'ñ': 'n', 'ń': 'n', 'ň': 'n', 'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o',
-        'ö': 'o', 'ø': 'o', 'ō': 'o', 'ó': 'o', 'œ': 'oe', 'ù': 'u', 'ú': 'u', 'û': 'u',
-        'ü': 'u', 'ū': 'u', 'ý': 'y', 'ÿ': 'y', 'ž': 'z', 'ź': 'z', 'ż': 'z',
-        'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A', 'Å': 'A', 'Æ': 'AE', 'Ā': 'A',
-        'Ç': 'C', 'Ć': 'C', 'Ĉ': 'C', 'Č': 'C', 'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
-        'Ē': 'E', 'Ė': 'E', 'Ę': 'E', 'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I', 'Ī': 'I',
-        'Į': 'I', 'İ': 'I', 'Ñ': 'N', 'Ń': 'N', 'Ň': 'N', 'Ò': 'O', 'Ó': 'O', 'Ô': 'O',
-        'Õ': 'O', 'Ö': 'O', 'Ø': 'O', 'Ō': 'O', 'Œ': 'OE', 'Ù': 'U', 'Ú': 'U', 'Û': 'U',
-        'Ü': 'U', 'Ū': 'U', 'Ý': 'Y', 'Ÿ': 'Y', 'Ž': 'Z', 'Ź': 'Z', 'Ż': 'Z', 'œ': 'oe',
-        'ř': 'r', 'š': 's', 'ţ': 't', 'ū': 'u', 'ý': 'y'
-    };
+//MOVED to pub worker thread
+// const replaceSpecialChars = (str) => {
+//     const charMap = {
+//         'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a', 'æ': 'ae', 'ā': 'a',
+//         'ç': 'c', 'ć': 'c', 'ĉ': 'c', 'č': 'c', 'ç': 'c', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+//         'ē': 'e', 'ė': 'e', 'ę': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i',
+//         'į': 'i', 'ı': 'i', 'ñ': 'n', 'ń': 'n', 'ň': 'n', 'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o',
+//         'ö': 'o', 'ø': 'o', 'ō': 'o', 'ó': 'o', 'œ': 'oe', 'ù': 'u', 'ú': 'u', 'û': 'u',
+//         'ü': 'u', 'ū': 'u', 'ý': 'y', 'ÿ': 'y', 'ž': 'z', 'ź': 'z', 'ż': 'z',
+//         'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A', 'Å': 'A', 'Æ': 'AE', 'Ā': 'A',
+//         'Ç': 'C', 'Ć': 'C', 'Ĉ': 'C', 'Č': 'C', 'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
+//         'Ē': 'E', 'Ė': 'E', 'Ę': 'E', 'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I', 'Ī': 'I',
+//         'Į': 'I', 'İ': 'I', 'Ñ': 'N', 'Ń': 'N', 'Ň': 'N', 'Ò': 'O', 'Ó': 'O', 'Ô': 'O',
+//         'Õ': 'O', 'Ö': 'O', 'Ø': 'O', 'Ō': 'O', 'Œ': 'OE', 'Ù': 'U', 'Ú': 'U', 'Û': 'U',
+//         'Ü': 'U', 'Ū': 'U', 'Ý': 'Y', 'Ÿ': 'Y', 'Ž': 'Z', 'Ź': 'Z', 'Ż': 'Z', 'œ': 'oe',
+//         'ř': 'r', 'š': 's', 'ţ': 't', 'ū': 'u', 'ý': 'y'
+//     };
+//     return str.split('').map(char => charMap[char] || char).join('').replace(/[\u2010-\u2015\u2212\uFE58\u2043]/g, '-');
+// };
+// const normalizeString = (str) => {
+//     // Normalize the string to decomposed form (NFD), where characters with accents are split into their base character and combining mark.
+//     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+// };
+// const matchStrings = (str1, str2) => {
+//     // Normalize both strings and compare
+//     return normalizeString(str1) === normalizeString(str2);
+// };
+// function uniq(a) {
+//     return Array.from(new Set(a));
+// }
 
-    return str.split('').map(char => charMap[char] || char).join('').replace(/[\u2010-\u2015\u2212\uFE58\u2043]/g, '-');
-};
 
-const normalizeString = (str) => {
-    // Normalize the string to decomposed form (NFD), where characters with accents are split into their base character and combining mark.
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-};
 
-const matchStrings = (str1, str2) => {
-    // Normalize both strings and compare
-    return normalizeString(str1) === normalizeString(str2);
-};
+//MOVED to init.js
+// async function getJCRExcel() {
+//     // await new Promise(resolve => setTimeout(resolve, 1000));  // 1-second delay
+//     try {
+//         // chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
+//         //     console.log(response.status);  // Should log "Semaphore released"
+//         //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//         //         console.log(response.status);  // Should log "Semaphore released"
+//         //     });
+//         return new Promise(resolve => {
+//             chrome.storage.local.get("jcrJSON", (result) => {
+//                 resolve(result.jcrJSON || false);
+//             });
+//         });
+//         // });
+//     }
+//     catch (error) {
+//         console.error("Error: Could not fetch JCR excel data. " + error);
+//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//             console.log(response.status);  // Should log "Semaphore released"
+//         });
+//     }
+// }
+// async function getRetractionWatchDB() {
+//     try {
+//         return new Promise(resolve => {
+//             chrome.storage.local.get("retractionwatchdb", (result) => {
+//                 resolve(result.retractionwatchdb || false);
+//             });
+//         });
+//         //     return new Promise((resolve) => {
+//         //     chrome.storage.local.get("retractionwatchdb", (result) => {
+//         //         const base64Data = result.retractionwatchdb;
+//         //         if (!base64Data) {
+//         //             resolve(false); // No data found
+//         //             return;
+//         //         }
+//         //         // Convert Base64 string back to Blob
+//         //         const byteString = atob(base64Data.split(",")[1]);
+//         //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
+//         //         const ab = new ArrayBuffer(byteString.length);
+//         //         const ia = new Uint8Array(ab);
+//         //         for (let i = 0; i < byteString.length; i++) {
+//         //             ia[i] = byteString.charCodeAt(i);
+//         //         }
+//         //         resolve(new Blob([ab], { type: mimeString }));
+//         //     });
+//         // });
+//     }
+//     catch (error) {
+//         console.error("Error: Could not RetractionWatchDB blob data. " + error);
+//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//             console.log(response.status);  // Should log "Semaphore released"
+//         });
+//     }
+// }
 
-function uniq(a) {
-    return Array.from(new Set(a));
-}
+//MOVED to init.js
+// function createButton() {
+//     // Check if button already exists to avoid duplicates
+//     if (document.getElementById("inject-content-button")) {
+//         const button = document.getElementById("inject-content-button");
+//         button.style.display = "none";
 
-async function getJCRExcel() {
-    // await new Promise(resolve => setTimeout(resolve, 1000));  // 1-second delay
-    try {
-        // chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
-        //     console.log(response.status);  // Should log "Semaphore released" 
-        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-        //         console.log(response.status);  // Should log "Semaphore released" 
-        //     });
-        return new Promise(resolve => {
-            chrome.storage.local.get("jcrJSON", (result) => {
-                resolve(result.jcrJSON || false);
-            });
-        });
-        // });
-    }
-    catch (error) {
-        console.error("Error: Could not fetch JCR excel data. " + error);
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released" 
-        });
-    }
-}
+//         // button.style.display = "flex";
 
-async function getRetractionWatchDB() {
-    try {
-        return new Promise(resolve => {
-            chrome.storage.local.get("retractionwatchdb", (result) => {
-                resolve(result.retractionwatchdb || false);
-            });
-        });
+//         return;
+//     }
 
-        //     return new Promise((resolve) => {
-        //     chrome.storage.local.get("retractionwatchdb", (result) => {
-        //         const base64Data = result.retractionwatchdb;
-        //         if (!base64Data) {
-        //             resolve(false); // No data found
-        //             return;
-        //         }
+//     // Create a new button element
+//     const button = document.createElement("button");
+//     // button.id = "inject-content-button";
+//     // button.textContent = "Run GScholarLENS";
+//     // // button.textContent.color = "white";
+//     // // button.style.position = "fixed";
+//     // button.style.marginTop = "5px";
+//     // button.style.marginBottom = "5px";
+//     // button.style.top = "20px";
+//     // // button.style.left = "20px";
+//     // button.style.bottom = "20px";
+//     // // button.style.right = "20px";
+//     // // button.style.padding = "10px";
+//     // button.style.zIndex = "1000";
+//     // // button.style.background = "url(" + chrome.runtime.getURL("images/banner.png") + ") no-repeat";
+//     // // button.style.backgroundSize = "100% 75%"; 
+//     // // button.style.backgroundColor = "#4CAF50";
+//     // // button.style.color = "white";
+//     // // button.style.border = "none";
+//     // button.style.borderRadius = "7px";
+//     // button.style.cursor = "pointer";
+//     // button.style.boxShadow = "0px 0px 1px 1px rgb(0,0,0)"
+//     // // button.style.marginTop = "20px";
+//     // // button.style.marginBottom = "20px";
+//     // button.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
 
-        //         // Convert Base64 string back to Blob
-        //         const byteString = atob(base64Data.split(",")[1]);
-        //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
-        //         const ab = new ArrayBuffer(byteString.length);
-        //         const ia = new Uint8Array(ab);
+//     // const icon = document.createElement("img");
+//     // icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+//     // icon.alt = "GScholarLENS";
+//     // icon.style.height = "16px"; // Adjust icon size
+//     // icon.style.width = "16px";
+//     // icon.style.objectFit = "contain";
 
-        //         for (let i = 0; i < byteString.length; i++) {
-        //             ia[i] = byteString.charCodeAt(i);
-        //         }
+//     // // Add the icon and text to the button
+//     // button.prepend(icon);
 
-        //         resolve(new Blob([ab], { type: mimeString }));
-        //     });
-        // });
+//     button.id = "inject-content-button";
+//     button.textContent = "Initializing GScholarLENS...";
+//     // button.textContent.color = "white";
+//     button.disabled = true;
+//     button.style.width = "fit-content";
+//     button.style.display = "flex"; // Flexbox for proper alignment
+//     button.style.alignItems = "center"; // Vertically center text and icon
+//     button.style.gap = "5px"; // Space between icon and text
+//     // button.style.padding = "12px 20px"; // Increase padding for a larger button
+//     button.style.fontSize = "16px"; // Larger font size
+//     // button.style.fontWeight = "bold"; // Bold text
+//     // button.style.color = "white"; // White text
+//     // button.style.fontStyle = "italic"; // Italicized text
+//     button.style.marginTop = "20px";
+//     button.style.marginBottom = "10px";
+//     button.style.zIndex = "1000";
+//     button.style.borderRadius = "7px";
+//     button.style.cursor = "not-allowed";
+//     button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
+//     button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
+//     // button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
 
-    }
-    catch (error) {
-        console.error("Error: Could not RetractionWatchDB blob data. " + error);
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released" 
-        });
-    }
-}
+//     // Add an icon to the button
+//     const icon = document.createElement("img");
+//     icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+//     icon.alt = "GScholarLENS";
+//     icon.style.height = "20px"; // Adjust icon size
+//     icon.style.width = "20px";
+//     icon.style.objectFit = "contain";
 
-function createButton() {
-    // Check if button already exists to avoid duplicates
-    if (document.getElementById("inject-content-button")) {
-        const button = document.getElementById("inject-content-button");
-        button.style.display = "none";
+//     // Add the icon and text to the button
+//     button.prepend(icon);
 
-        // button.style.display = "flex";
+//     // Add the button to the page
+//     // const profileSection = document.querySelector('#gsc_prf_w');
+//     const profileSection = document.querySelector('#gsc_prf');
+//     profileSection.append(button);
 
-        return;
-    }
+//     // Add an event listener to the button to execute GScholarLENS.js when clicked
+//     button.addEventListener("click", () => {
+//         // const currentTabURL = window.location.href.toString();
+//         // fetch(currentTabURL).then((captchaTest) => { 
+//         //     if (captchaTest.status != 200) { 
+//         //     window.location.reload();
+//         // }
+//         // });
+//         try {
+//             //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
+//             //         console.log(response.status);  // Should log "Semaphore released" 
+//             startScraping();
+//             button.style.display = "none";
+//             //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//             //             console.log(response.status);  // Should log "Semaphore released" 
+//             //         });
+//             //     });
+//         }
+//         catch (error) {
+//             console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
+//             button.style.display = "none";
+//             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//                 console.log(response.status);  // Should log "Semaphore released" 
+//             });
+//         } 
+//         // finally{
+//         //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+//         //         console.log(response.status);  // Should log "Semaphore released" 
+//         //     });
+//         // }
 
-    // Create a new button element
-    const button = document.createElement("button");
-    // button.id = "inject-content-button";
-    // button.textContent = "Run GScholarLENS";
-    // // button.textContent.color = "white";
-    // // button.style.position = "fixed";
-    // button.style.marginTop = "5px";
-    // button.style.marginBottom = "5px";
-    // button.style.top = "20px";
-    // // button.style.left = "20px";
-    // button.style.bottom = "20px";
-    // // button.style.right = "20px";
-    // // button.style.padding = "10px";
-    // button.style.zIndex = "1000";
-    // // button.style.background = "url(" + chrome.runtime.getURL("images/banner.png") + ") no-repeat";
-    // // button.style.backgroundSize = "100% 75%"; 
-    // // button.style.backgroundColor = "#4CAF50";
-    // // button.style.color = "white";
-    // // button.style.border = "none";
-    // button.style.borderRadius = "7px";
-    // button.style.cursor = "pointer";
-    // button.style.boxShadow = "0px 0px 1px 1px rgb(0,0,0)"
-    // // button.style.marginTop = "20px";
-    // // button.style.marginBottom = "20px";
-    // button.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
-
-    // const icon = document.createElement("img");
-    // icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-    // icon.alt = "GScholarLENS";
-    // icon.style.height = "16px"; // Adjust icon size
-    // icon.style.width = "16px";
-    // icon.style.objectFit = "contain";
-
-    // // Add the icon and text to the button
-    // button.prepend(icon);
-
-    button.id = "inject-content-button";
-    button.textContent = "Initializing GScholarLENS...";
-    // button.textContent.color = "white";
-    button.disabled = true;
-    button.style.width = "fit-content";
-    button.style.display = "flex"; // Flexbox for proper alignment
-    button.style.alignItems = "center"; // Vertically center text and icon
-    button.style.gap = "5px"; // Space between icon and text
-    // button.style.padding = "12px 20px"; // Increase padding for a larger button
-    button.style.fontSize = "16px"; // Larger font size
-    // button.style.fontWeight = "bold"; // Bold text
-    // button.style.color = "white"; // White text
-    // button.style.fontStyle = "italic"; // Italicized text
-    button.style.marginTop = "20px";
-    button.style.marginBottom = "10px";
-    button.style.zIndex = "1000";
-    button.style.borderRadius = "7px";
-    button.style.cursor = "not-allowed";
-    button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
-    button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
-    // button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
-
-    // Add an icon to the button
-    const icon = document.createElement("img");
-    icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-    icon.alt = "GScholarLENS";
-    icon.style.height = "20px"; // Adjust icon size
-    icon.style.width = "20px";
-    icon.style.objectFit = "contain";
-
-    // Add the icon and text to the button
-    button.prepend(icon);
-
-    // Add the button to the page
-    // const profileSection = document.querySelector('#gsc_prf_w');
-    const profileSection = document.querySelector('#gsc_prf');
-    profileSection.append(button);
-
-    // Add an event listener to the button to execute GScholarLENS.js when clicked
-    button.addEventListener("click", () => {
-        // const currentTabURL = window.location.href.toString();
-        // fetch(currentTabURL).then((captchaTest) => { 
-        //     if (captchaTest.status != 200) { 
-        //     window.location.reload();
-        // }
-        // });
-        try {
-            //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
-            //         console.log(response.status);  // Should log "Semaphore released" 
-            startScraping();
-            button.style.display = "none";
-            //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            //             console.log(response.status);  // Should log "Semaphore released" 
-            //         });
-            //     });
-        }
-        catch (error) {
-            console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
-            button.style.display = "none";
-            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-                console.log(response.status);  // Should log "Semaphore released" 
-            });
-        } 
-        // finally{
-        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-        //         console.log(response.status);  // Should log "Semaphore released" 
-        //     });
-        // }
-
-    }, { passive: true });
-}
+//     }, { passive: true });
+// }
 
 // function simpleBLAST(query, target, wordSize = 3) {
 //     const queryLength = query.length;
@@ -576,7 +572,7 @@ function mergeYearwiseData(globalYearData, workerYearData) {
     }
   }  
 
-function startScraping() {
+function startScraping(chrome) {
     try {
         // Listen for visibility change events
         document.addEventListener('visibilitychange', () => {

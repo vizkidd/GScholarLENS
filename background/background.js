@@ -439,7 +439,7 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 chrome.action.onClicked.addListener((tab) => {
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content/GScholarLENS.js']  // Inject GScholarLENS.js into the active tab
+      files: ['content/init.js']  // Inject init.js into the active tab
     }).catch(err => {
       console.error("Injection failed:", err);
     });

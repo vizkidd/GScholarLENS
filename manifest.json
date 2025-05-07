@@ -101,7 +101,8 @@
         "libs/purify.min.js",
         "libs/dom-to-image-more.min.js",
         "workers/publicationWorker.min.js",
-        "workers/retractionWorker.min.js"
+        "workers/retractionWorker.min.js",
+        "content/GScholarLENS.js"
       ],
       "matches": [
         "<all_urls>"
@@ -241,18 +242,16 @@
         "libs/index.umd.js",
         "libs/purify.min.js",
         "libs/dom-to-image-more.min.js",
-        "content/GScholarLENS.js"
+        "workers/publicationWorker.min.js",
+        "workers/retractionWorker.min.js",
+        "content/GScholarLENS.js",
+        "content/init.js"
       ]
     }
   ],
   "content_security_policy": {
     "extension_pages": 
-      "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-    "sandbox":
-      "script-src 'self'; worker-src 'self' blob: data:; object-src 'self';"
-  },
-  "sandbox": {
-    "pages": ["workers/worker.html"]
+      "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },
   "browser_specific_settings": {
     "gecko": {
