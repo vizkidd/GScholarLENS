@@ -4102,7 +4102,7 @@ input::-moz-range-thumb {
                             }
                             publicationProgress+=1;
                             updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-
+                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                             publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
                             processedPubsIdx.add(data.publication.pub_idx);
 
@@ -4382,7 +4382,7 @@ input::-moz-range-thumb {
 
                 } //Initial Scraping - End
 
-                console.log("Extended Scraping"); // DEBUG
+                // console.log("Extended Scraping"); // DEBUG
                 //Extended Scrape - Scrape the extended author's list for publications with insufficient author info (or multi-matching or duplicating author names)
                 // if (urls.length > 0) {
                 if (extended_scrape) {
@@ -4443,7 +4443,7 @@ input::-moz-range-thumb {
                                 publicationProgress += 1;
                                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                                // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                                 publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
 
                                 // authorRegexes = [...authorRegexes, ...data.authorRegexes];
