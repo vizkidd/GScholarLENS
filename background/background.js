@@ -25,7 +25,14 @@
 //         await setInitializationStatus(false);
 //     })();
 // });
-// import { Worker } from './node_modules/cluster/lib/worker.js';
+// import { Worker } from 'cluster';
+// const fs = require('fs');
+// const net = require('net');
+// const os = require('os');
+// const path = require('path');
+// const cluster = require('cluster');
+// const workerThreads = require('worker_threads');
+
 async function setInitializationStatus(status) {
     return new Promise(resolve => {
         chrome.storage.local.set({ "isInitialized": status }, resolve);
@@ -439,7 +446,7 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 chrome.action.onClicked.addListener((tab) => {
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content/init.js']  // Inject init.js into the active tab
+      files: ['content/GScholarLENS.js']  // Inject init.js into the active tab
     }).catch(err => {
       console.error("Injection failed:", err);
     });

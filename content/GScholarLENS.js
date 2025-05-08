@@ -1,21 +1,21 @@
 // // Load the font using JavaScript
-// const fontPath = chrome.runtime.getURL("fonts/SchibstedGrotesk.ttf");
-// const schibsted_grotesk = new FontFace('schibsted-grotesk', `url(${fontPath})`);
-// // let csp_hash_map;
-// let excelData = false;
-// let retractionWatchDB = false;
-// let profileScraped = false;
+const fontPath = chrome.runtime.getURL("fonts/SchibstedGrotesk.ttf");
+const schibsted_grotesk = new FontFace('schibsted-grotesk', `url(${fontPath})`);
+// let csp_hash_map;
+let excelData = false;
+let retractionWatchDB = false;
+let profileScraped = false;
 
-// // Create TSV content
-// let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
+// Create TSV content
+let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
 
-// // Add the font to the document once it's loaded
-// schibsted_grotesk.load().then((loadedFont) => {
-//     document.fonts.add(loadedFont);
-//     document.body.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
-// }).catch((error) => {
-//     console.error('Font failed to load:', error);
-// });
+// Add the font to the document once it's loaded
+schibsted_grotesk.load().then((loadedFont) => {
+    document.fonts.add(loadedFont);
+    document.body.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+}).catch((error) => {
+    console.error('Font failed to load:', error);
+});
 
 // Function to load scripts dynamically and insert them into the page with a callback
 async function loadScript(url, callback, id) {
@@ -99,33 +99,33 @@ async function loadScript(url, callback, id) {
 
 
 //MOVED to init.js
-// function releaseSemaphoreAndReload() {
-//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-//       console.log(resp.status);
-//       window.location.reload();
-//     });
-//   }
-//   window.addEventListener('error', event => {
-//     console.error('Uncaught error:', event);
-//     // releaseSemaphoreAndReload();
-//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-//         console.log(resp.status);
-//       });
-//   }, true);  // useCapture=true to catch as early as possible
+function releaseSemaphoreAndReload() {
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+      console.log(resp.status);
+      window.location.reload();
+    });
+  }
+  window.addEventListener('error', event => {
+    console.error('Uncaught error:', event);
+    // releaseSemaphoreAndReload();
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+      });
+  }, true);  // useCapture=true to catch as early as possible
   
-//   // 3) Catch unhandled promise rejections
-//   window.addEventListener('unhandledrejection', event => {
-//     console.error('Unhandled rejection:', event);
-//     // releaseSemaphoreAndReload();
-//     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-//         console.log(resp.status);
-//       });
-//   }, true);
-//   window.addEventListener('onbeforeunload', () => { //unload
-//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//             console.log(response.status);  // Should log "Semaphore released"
-//         });
-//     }, true); // useCapture=true to catch as early as possible
+  // 3) Catch unhandled promise rejections
+  window.addEventListener('unhandledrejection', event => {
+    console.error('Unhandled rejection:', event);
+    // releaseSemaphoreAndReload();
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+      });
+  }, true);
+  window.addEventListener('onbeforeunload', () => { //unload
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            console.log(response.status);  // Should log "Semaphore released"
+        });
+    }, true); // useCapture=true to catch as early as possible
 
 
 
@@ -133,108 +133,108 @@ async function loadScript(url, callback, id) {
 // This async function is like "main()" for each tab/content script.
 // It runs automatically to load the excel data from local storage and create the button.
 // It does a preliminary test for the presence of a CAPTCHA page.
-// createButton();
-// chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
-//     console.log(response.status);
-//     (async function () {
-//         const currentTabURL = window.location.href.toString();
-//         const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
-//         if (captchaTest.status != 200) {
-//             // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-//             //     console.log(release_response.status);  // Should log "Semaphore released" 
-//             //     window.location.reload();
-//             // });
-//             releaseSemaphoreAndReload();
-//         }
-//         // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
-//         excelData = await getJCRExcel();
-//         retractionWatchDB = await getRetractionWatchDB();
-//         // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
-//         enableButton();
-//     })();
-// });
-// function enableButton() {
-//     const button = document.getElementById("inject-content-button");
-//     button.textContent = "Run GScholarLENS";
-//     button.disabled = false;
-//     button.textContent.color = "white";
-//     button.style.width = "fit-content";
-//     button.style.display = "flex"; // Flexbox for proper alignment
-//     button.style.alignItems = "center"; // Vertically center text and icon
-//     button.style.gap = "5px"; // Space between icon and text
-//     // button.style.padding = "12px 20px"; // Increase padding for a larger button
-//     button.style.fontSize = "16px"; // Larger font size
-//     // button.style.fontWeight = "bold"; // Bold text
-//     button.style.color = "white"; // White text
-//     // button.style.fontStyle = "italic"; // Italicized text
-//     button.style.marginTop = "20px";
-//     button.style.marginBottom = "10px";
-//     button.style.zIndex = "1000";
-//     button.style.borderRadius = "7px";
-//     button.style.cursor = "pointer";
-//     button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
-//     button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
-//     button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
-//     // Add an icon to the button
-//     const icon = document.createElement("img");
-//     icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-//     icon.alt = "GScholarLENS";
-//     icon.style.height = "20px"; // Adjust icon size
-//     icon.style.width = "20px";
-//     icon.style.objectFit = "contain";
-//     // Add the icon and text to the button
-//     button.prepend(icon);
-// }
-
-////MOVED to init.js
-//Credit : https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
-// const cyrb53 = (str, seed = 0) => {
-//     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-//     for (let i = 0, ch; i < str.length; i++) {
-//         ch = str.charCodeAt(i);
-//         h1 = Math.imul(h1 ^ ch, 2654435761);
-//         h2 = Math.imul(h2 ^ ch, 1597334677);
-//     }
-//     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-//     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-//     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-//     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-
-//     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-// };
+createButton();
+chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
+    console.log(response.status);
+    (async function () {
+        const currentTabURL = window.location.href.toString();
+        const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
+        if (captchaTest.status != 200) {
+            // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
+            //     console.log(release_response.status);  // Should log "Semaphore released" 
+            //     window.location.reload();
+            // });
+            releaseSemaphoreAndReload();
+        }
+        // csp_hash_map = await chrome.storage.local.get('csp_hash_map');
+        excelData = await getJCRExcel();
+        retractionWatchDB = await getRetractionWatchDB();
+        // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
+        enableButton();
+    })();
+});
+function enableButton() {
+    const button = document.getElementById("inject-content-button");
+    button.textContent = "Run GScholarLENS";
+    button.disabled = false;
+    button.textContent.color = "white";
+    button.style.width = "fit-content";
+    button.style.display = "flex"; // Flexbox for proper alignment
+    button.style.alignItems = "center"; // Vertically center text and icon
+    button.style.gap = "5px"; // Space between icon and text
+    // button.style.padding = "12px 20px"; // Increase padding for a larger button
+    button.style.fontSize = "16px"; // Larger font size
+    // button.style.fontWeight = "bold"; // Bold text
+    button.style.color = "white"; // White text
+    // button.style.fontStyle = "italic"; // Italicized text
+    button.style.marginTop = "20px";
+    button.style.marginBottom = "10px";
+    button.style.zIndex = "1000";
+    button.style.borderRadius = "7px";
+    button.style.cursor = "pointer";
+    button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
+    button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
+    button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
+    // Add an icon to the button
+    const icon = document.createElement("img");
+    icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+    icon.alt = "GScholarLENS";
+    icon.style.height = "20px"; // Adjust icon size
+    icon.style.width = "20px";
+    icon.style.objectFit = "contain";
+    // Add the icon and text to the button
+    button.prepend(icon);
+}
 
 //MOVED to init.js
-// async function fetchWithSessionCache(key, url, refetch = false) {
+// Credit : https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
+const cyrb53 = (str, seed = 0) => {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 
-//     if (!key || key.length === 0) {
-//         // console.warn("Empty Cache key");
-//         return null;
-//     }
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+};
 
-//     const hash_key = cyrb53(key);
-//     const cachedData = await sessionStorage.getItem(hash_key);
-//     if (cachedData && !refetch) {
-//         // console.log("Cache hit:", key);
-//         // return JSON.parse(cachedData);
-//         return cachedData;
-//     }
+// MOVED to init.js
+async function fetchWithSessionCache(key, url, refetch = false) {
 
-//     // console.warn("Cache miss ("+ hash_key +") :", key);
-//     try {
-//         const response = await fetch(url);
-//         // const data = await response.json();
-//         // sessionStorage.setItem(key, JSON.stringify(data)); // Save to sessionStorage
-//         // return data;
-//         if (response && response.status == 200) {
-//             await sessionStorage.setItem(hash_key, response); // Save to sessionStorage
-//         }
-//         return response;
-//     } catch (error) {
-//         console.error("Error fetching data:", error);
-//         return null;
-//     }
-//     return true;
-// }
+    if (!key || key.length === 0) {
+        // console.warn("Empty Cache key");
+        return null;
+    }
+
+    const hash_key = cyrb53(key);
+    const cachedData = await sessionStorage.getItem(hash_key);
+    if (cachedData && !refetch) {
+        // console.log("Cache hit:", key);
+        // return JSON.parse(cachedData);
+        return cachedData;
+    }
+
+    // console.warn("Cache miss ("+ hash_key +") :", key);
+    try {
+        const response = await fetch(url);
+        // const data = await response.json();
+        // sessionStorage.setItem(key, JSON.stringify(data)); // Save to sessionStorage
+        // return data;
+        if (response && response.status == 200) {
+            await sessionStorage.setItem(hash_key, response); // Save to sessionStorage
+        }
+        return response;
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        return null;
+    }
+    return true;
+}
 
 /**
  * Returns a random number between min (inclusive) and max (exclusive)
@@ -255,6 +255,26 @@ function getRandomInt(min, max) {
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+async function createInlineWorker(pathInExtension) {
+    // 1) fetch the worker script text
+    const res  = await fetch(pathInExtension);
+    const code = await res.text();
+  
+    // 2) make a Blob URL for it
+    const blob = new Blob([code], { type: 'application/javascript' });
+    const url  = URL.createObjectURL(blob);
+  
+    // 3) construct the Worker
+    const worker = new Worker(url);
+    // 4) clean up the blob URL when the worker loads
+    worker.addEventListener('online', () => URL.revokeObjectURL(url));
+    worker.addEventListener('offline', () => {
+        URL.revokeObjectURL(url)
+        blob.dispose(); // Clean up the blob
+    });
+    return worker;
+  }
 
 //MOVED to pub worker thread
 // const replaceSpecialChars = (str) => {
@@ -290,181 +310,181 @@ function getRandomInt(min, max) {
 
 
 //MOVED to init.js
-// async function getJCRExcel() {
-//     // await new Promise(resolve => setTimeout(resolve, 1000));  // 1-second delay
-//     try {
-//         // chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
-//         //     console.log(response.status);  // Should log "Semaphore released"
-//         //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//         //         console.log(response.status);  // Should log "Semaphore released"
-//         //     });
-//         return new Promise(resolve => {
-//             chrome.storage.local.get("jcrJSON", (result) => {
-//                 resolve(result.jcrJSON || false);
-//             });
-//         });
-//         // });
-//     }
-//     catch (error) {
-//         console.error("Error: Could not fetch JCR excel data. " + error);
-//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//             console.log(response.status);  // Should log "Semaphore released"
-//         });
-//     }
-// }
-// async function getRetractionWatchDB() {
-//     try {
-//         return new Promise(resolve => {
-//             chrome.storage.local.get("retractionwatchdb", (result) => {
-//                 resolve(result.retractionwatchdb || false);
-//             });
-//         });
-//         //     return new Promise((resolve) => {
-//         //     chrome.storage.local.get("retractionwatchdb", (result) => {
-//         //         const base64Data = result.retractionwatchdb;
-//         //         if (!base64Data) {
-//         //             resolve(false); // No data found
-//         //             return;
-//         //         }
-//         //         // Convert Base64 string back to Blob
-//         //         const byteString = atob(base64Data.split(",")[1]);
-//         //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
-//         //         const ab = new ArrayBuffer(byteString.length);
-//         //         const ia = new Uint8Array(ab);
-//         //         for (let i = 0; i < byteString.length; i++) {
-//         //             ia[i] = byteString.charCodeAt(i);
-//         //         }
-//         //         resolve(new Blob([ab], { type: mimeString }));
-//         //     });
-//         // });
-//     }
-//     catch (error) {
-//         console.error("Error: Could not RetractionWatchDB blob data. " + error);
-//         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//             console.log(response.status);  // Should log "Semaphore released"
-//         });
-//     }
-// }
+async function getJCRExcel() {
+    // await new Promise(resolve => setTimeout(resolve, 1000));  // 1-second delay
+    try {
+        // chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
+        //     console.log(response.status);  // Should log "Semaphore released"
+        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+        //         console.log(response.status);  // Should log "Semaphore released"
+        //     });
+        return new Promise(resolve => {
+            chrome.storage.local.get("jcrJSON", (result) => {
+                resolve(result.jcrJSON || false);
+            });
+        });
+        // });
+    }
+    catch (error) {
+        console.error("Error: Could not fetch JCR excel data. " + error);
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            console.log(response.status);  // Should log "Semaphore released"
+        });
+    }
+}
+async function getRetractionWatchDB() {
+    try {
+        return new Promise(resolve => {
+            chrome.storage.local.get("retractionwatchdb", (result) => {
+                resolve(result.retractionwatchdb || false);
+            });
+        });
+        //     return new Promise((resolve) => {
+        //     chrome.storage.local.get("retractionwatchdb", (result) => {
+        //         const base64Data = result.retractionwatchdb;
+        //         if (!base64Data) {
+        //             resolve(false); // No data found
+        //             return;
+        //         }
+        //         // Convert Base64 string back to Blob
+        //         const byteString = atob(base64Data.split(",")[1]);
+        //         const mimeString = base64Data.split(",")[0].split(":")[1].split(";")[0];
+        //         const ab = new ArrayBuffer(byteString.length);
+        //         const ia = new Uint8Array(ab);
+        //         for (let i = 0; i < byteString.length; i++) {
+        //             ia[i] = byteString.charCodeAt(i);
+        //         }
+        //         resolve(new Blob([ab], { type: mimeString }));
+        //     });
+        // });
+    }
+    catch (error) {
+        console.error("Error: Could not RetractionWatchDB blob data. " + error);
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            console.log(response.status);  // Should log "Semaphore released"
+        });
+    }
+}
 
 //MOVED to init.js
-// function createButton() {
-//     // Check if button already exists to avoid duplicates
-//     if (document.getElementById("inject-content-button")) {
-//         const button = document.getElementById("inject-content-button");
-//         button.style.display = "none";
+function createButton() {
+    // Check if button already exists to avoid duplicates
+    if (document.getElementById("inject-content-button")) {
+        const button = document.getElementById("inject-content-button");
+        button.style.display = "none";
 
-//         // button.style.display = "flex";
+        // button.style.display = "flex";
 
-//         return;
-//     }
+        return;
+    }
 
-//     // Create a new button element
-//     const button = document.createElement("button");
-//     // button.id = "inject-content-button";
-//     // button.textContent = "Run GScholarLENS";
-//     // // button.textContent.color = "white";
-//     // // button.style.position = "fixed";
-//     // button.style.marginTop = "5px";
-//     // button.style.marginBottom = "5px";
-//     // button.style.top = "20px";
-//     // // button.style.left = "20px";
-//     // button.style.bottom = "20px";
-//     // // button.style.right = "20px";
-//     // // button.style.padding = "10px";
-//     // button.style.zIndex = "1000";
-//     // // button.style.background = "url(" + chrome.runtime.getURL("images/banner.png") + ") no-repeat";
-//     // // button.style.backgroundSize = "100% 75%"; 
-//     // // button.style.backgroundColor = "#4CAF50";
-//     // // button.style.color = "white";
-//     // // button.style.border = "none";
-//     // button.style.borderRadius = "7px";
-//     // button.style.cursor = "pointer";
-//     // button.style.boxShadow = "0px 0px 1px 1px rgb(0,0,0)"
-//     // // button.style.marginTop = "20px";
-//     // // button.style.marginBottom = "20px";
-//     // button.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+    // Create a new button element
+    const button = document.createElement("button");
+    // button.id = "inject-content-button";
+    // button.textContent = "Run GScholarLENS";
+    // // button.textContent.color = "white";
+    // // button.style.position = "fixed";
+    // button.style.marginTop = "5px";
+    // button.style.marginBottom = "5px";
+    // button.style.top = "20px";
+    // // button.style.left = "20px";
+    // button.style.bottom = "20px";
+    // // button.style.right = "20px";
+    // // button.style.padding = "10px";
+    // button.style.zIndex = "1000";
+    // // button.style.background = "url(" + chrome.runtime.getURL("images/banner.png") + ") no-repeat";
+    // // button.style.backgroundSize = "100% 75%"; 
+    // // button.style.backgroundColor = "#4CAF50";
+    // // button.style.color = "white";
+    // // button.style.border = "none";
+    // button.style.borderRadius = "7px";
+    // button.style.cursor = "pointer";
+    // button.style.boxShadow = "0px 0px 1px 1px rgb(0,0,0)"
+    // // button.style.marginTop = "20px";
+    // // button.style.marginBottom = "20px";
+    // button.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
 
-//     // const icon = document.createElement("img");
-//     // icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-//     // icon.alt = "GScholarLENS";
-//     // icon.style.height = "16px"; // Adjust icon size
-//     // icon.style.width = "16px";
-//     // icon.style.objectFit = "contain";
+    // const icon = document.createElement("img");
+    // icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+    // icon.alt = "GScholarLENS";
+    // icon.style.height = "16px"; // Adjust icon size
+    // icon.style.width = "16px";
+    // icon.style.objectFit = "contain";
 
-//     // // Add the icon and text to the button
-//     // button.prepend(icon);
+    // // Add the icon and text to the button
+    // button.prepend(icon);
 
-//     button.id = "inject-content-button";
-//     button.textContent = "Initializing GScholarLENS...";
-//     // button.textContent.color = "white";
-//     button.disabled = true;
-//     button.style.width = "fit-content";
-//     button.style.display = "flex"; // Flexbox for proper alignment
-//     button.style.alignItems = "center"; // Vertically center text and icon
-//     button.style.gap = "5px"; // Space between icon and text
-//     // button.style.padding = "12px 20px"; // Increase padding for a larger button
-//     button.style.fontSize = "16px"; // Larger font size
-//     // button.style.fontWeight = "bold"; // Bold text
-//     // button.style.color = "white"; // White text
-//     // button.style.fontStyle = "italic"; // Italicized text
-//     button.style.marginTop = "20px";
-//     button.style.marginBottom = "10px";
-//     button.style.zIndex = "1000";
-//     button.style.borderRadius = "7px";
-//     button.style.cursor = "not-allowed";
-//     button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
-//     button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
-//     // button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
+    button.id = "inject-content-button";
+    button.textContent = "Initializing GScholarLENS...";
+    // button.textContent.color = "white";
+    button.disabled = true;
+    button.style.width = "fit-content";
+    button.style.display = "flex"; // Flexbox for proper alignment
+    button.style.alignItems = "center"; // Vertically center text and icon
+    button.style.gap = "5px"; // Space between icon and text
+    // button.style.padding = "12px 20px"; // Increase padding for a larger button
+    button.style.fontSize = "16px"; // Larger font size
+    // button.style.fontWeight = "bold"; // Bold text
+    // button.style.color = "white"; // White text
+    // button.style.fontStyle = "italic"; // Italicized text
+    button.style.marginTop = "20px";
+    button.style.marginBottom = "10px";
+    button.style.zIndex = "1000";
+    button.style.borderRadius = "7px";
+    button.style.cursor = "not-allowed";
+    button.style.boxShadow = "3px 3px 5px rgba(0,0,0,0.6)";
+    button.style.fontFamily = "schibsted-grotesk, sans-serif"; // Apply the font
+    // button.style.backgroundColor = "rgba(0,0,0,0.8)"; // Black background
 
-//     // Add an icon to the button
-//     const icon = document.createElement("img");
-//     icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
-//     icon.alt = "GScholarLENS";
-//     icon.style.height = "20px"; // Adjust icon size
-//     icon.style.width = "20px";
-//     icon.style.objectFit = "contain";
+    // Add an icon to the button
+    const icon = document.createElement("img");
+    icon.src = chrome.runtime.getURL("icons/icon128.png"); // Path to the icon
+    icon.alt = "GScholarLENS";
+    icon.style.height = "20px"; // Adjust icon size
+    icon.style.width = "20px";
+    icon.style.objectFit = "contain";
 
-//     // Add the icon and text to the button
-//     button.prepend(icon);
+    // Add the icon and text to the button
+    button.prepend(icon);
 
-//     // Add the button to the page
-//     // const profileSection = document.querySelector('#gsc_prf_w');
-//     const profileSection = document.querySelector('#gsc_prf');
-//     profileSection.append(button);
+    // Add the button to the page
+    // const profileSection = document.querySelector('#gsc_prf_w');
+    const profileSection = document.querySelector('#gsc_prf');
+    profileSection.append(button);
 
-//     // Add an event listener to the button to execute GScholarLENS.js when clicked
-//     button.addEventListener("click", () => {
-//         // const currentTabURL = window.location.href.toString();
-//         // fetch(currentTabURL).then((captchaTest) => { 
-//         //     if (captchaTest.status != 200) { 
-//         //     window.location.reload();
-//         // }
-//         // });
-//         try {
-//             //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
-//             //         console.log(response.status);  // Should log "Semaphore released" 
-//             startScraping();
-//             button.style.display = "none";
-//             //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//             //             console.log(response.status);  // Should log "Semaphore released" 
-//             //         });
-//             //     });
-//         }
-//         catch (error) {
-//             console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
-//             button.style.display = "none";
-//             chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//                 console.log(response.status);  // Should log "Semaphore released" 
-//             });
-//         } 
-//         // finally{
-//         //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-//         //         console.log(response.status);  // Should log "Semaphore released" 
-//         //     });
-//         // }
+    // Add an event listener to the button to execute GScholarLENS.js when clicked
+    button.addEventListener("click", () => {
+        // const currentTabURL = window.location.href.toString();
+        // fetch(currentTabURL).then((captchaTest) => { 
+        //     if (captchaTest.status != 200) { 
+        //     window.location.reload();
+        // }
+        // });
+        try {
+            //     chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
+            //         console.log(response.status);  // Should log "Semaphore released" 
+            startScraping();
+            button.style.display = "none";
+            //         chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+            //             console.log(response.status);  // Should log "Semaphore released" 
+            //         });
+            //     });
+        }
+        catch (error) {
+            console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
+            button.style.display = "none";
+            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+                console.log(response.status);  // Should log "Semaphore released" 
+            });
+        } 
+        // finally{
+        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+        //         console.log(response.status);  // Should log "Semaphore released" 
+        //     });
+        // }
 
-//     }, { passive: true });
-// }
+    }, { passive: true });
+}
 
 // function simpleBLAST(query, target, wordSize = 3) {
 //     const queryLength = query.length;
@@ -572,7 +592,7 @@ function mergeYearwiseData(globalYearData, workerYearData) {
     }
   }  
 
-function startScraping(chrome) {
+function startScraping() {
     try {
         // Listen for visibility change events
         document.addEventListener('visibilitychange', () => {
@@ -599,6 +619,7 @@ function startScraping(chrome) {
         const minRangeValueGap = 1;
         const pubMachineThreshold = 48;
         const MAX_RETRIES = 5;
+        const MAX_WORKERS = Math.max(1, navigator.hardwareConcurrency - 1);
 
         let selectedPeryearCheck = false;
         let selectedCumulativeCheck = false;
@@ -3990,9 +4011,37 @@ input::-moz-range-thumb {
 
             const retractedPubsIdxList = [];
             let retractionProgress = 0;
+            // let activeWorkers = 0;
+
+            // function scheduleTask(workerPool, taskQueue, callback, message) {
+            //     if (taskQueue.length === 0 && activeWorkers === 0) {
+            //       // all done
+            //       return finalize();
+            //     }
+            //     while (activeWorkers < MAX_WORKERS && taskQueue.length) {
+            //       const { pub, idx } = taskQueue.shift();
+            //       const worker = workerPool.find(w => w.idle);
+            //       if (!worker) break;
+            //       worker.idle = false;
+            //       activeWorkers++;
+                  
+            //       worker.onmessage = callback;
+            //       worker.postMessage(message);
+            //     }
+            //   }
+
             async function processPublicationsData() {
                 let extended_scrape = false;
                 const processedPubsIdx = new Set();
+                const  pubWorkerPool = [];
+                
+                for (let i = 0; i < MAX_WORKERS/2; i++) {
+                    const w = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+                    w.idle = true;
+                    pubWorkerPool.push(w);
+                }
+                // const taskQueue = publicationData.map((pub, idx) => ({ pub, idx }));
+                // scheduleTask(pubWorkerPool, taskQueue, callback, message)
                 //Initial scrape
                 // Process publication data and match authors
                 for (const [pub_idx, publication] of publicationData.entries()) {
@@ -4009,6 +4058,7 @@ input::-moz-range-thumb {
                     //     await new Promise(resolve => setTimeout(resolve, 100));
                     // }
 
+
                     while (pub_idx > retractionProgress) {
                         //    console.log(retractedPubsIdxList.length); //DEBUG
                         //wait until retraction check is complete for the specific publication
@@ -4019,6 +4069,12 @@ input::-moz-range-thumb {
                         continue;
                     }
                     
+                    while(!pubWorkerPool.find(w => w.idle)){
+                        await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
+                    }
+                    
+                    const pubWorker = pubWorkerPool.find(w => w.idle);
+                    pubWorker.idle = false;
                     // chrome.runtime.sendMessage({
                     //     task: 'initialScrape',
                     //     publication,
@@ -4039,21 +4095,20 @@ input::-moz-range-thumb {
 
 
                     // MOVED TO WORKER THREAD - START
-                    const pubWorker = new Worker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
-                    pubWorker.postMessage({ task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
-                    await new Promise(res => {
-                      const onPubDone = async ({ data }) => {
+                    pubWorker.onmessage = async ({ data }) => {
                         if (data.task === 'initialScrape' && data.type === 'working'){
                             if(!data.authorFound && data.extended_scrape){
                                 return;
                             }
                             publicationProgress+=1;
                             updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+
                             publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
                             processedPubsIdx.add(data.publication.pub_idx);
-                            authorRegexes = [...authorRegexes, ...data.authorRegexes];
-                            authorRegexes = new Array(...new Set(authorRegexes));
+
+                            // authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                            // authorRegexes = new Array(...new Set(authorRegexes));
+
                             if(data.publication.year.toString().trim().length === 0){
                                 pub_no_year += 1;
                             }
@@ -4070,27 +4125,27 @@ input::-moz-range-thumb {
                     switch (data.publication.author_pos) {
                           case "first_author":
                               author_pos_string = "1\t0\t0\t0";
-                              adjustedCitationCount = citationCount * hCiteProp[0];
+                              adjustedCitationCount = data.publication.citations * hCiteProp[0];
                               citationWeight = hCiteProp[0];
                               break;
                           case "second_author":
                               author_pos_string = "0\t1\t0\t0";
-                              adjustedCitationCount = citationCount * hCiteProp[1];
+                              adjustedCitationCount = data.publication.citations * hCiteProp[1];
                               citationWeight = hCiteProp[1];
                               break;
                           case "co_author":
                               author_pos_string = "0\t0\t1\t0";
                               if (data.publication.total_authors > 6 ) { //&& publication.authors.includes("...")
-                                  adjustedCitationCount = citationCount * 0.1;
+                                  adjustedCitationCount = data.publication.citations * 0.1;
                                   citationWeight = 0.1;
                               } else {
-                                  adjustedCitationCount = citationCount * 0.25;
+                                  adjustedCitationCount = data.publication.citations * 0.25;
                                   citationWeight = 0.25;
                               }
                               break;
                           case "corresponding_author":
                               author_pos_string = "0\t0\t0\t1";
-                              adjustedCitationCount = citationCount * hCiteProp[3];
+                              adjustedCitationCount = data.publication.citations * hCiteProp[3];
                               citationWeight = hCiteProp[3];
                               break;
                           default:
@@ -4106,16 +4161,97 @@ input::-moz-range-thumb {
                             authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
                             //MERGE yearwiseData and data.yearwiseData Maps
                             mergeYearwiseData(yearwiseData, data.yearwiseData);
-                            pubWorker.removeEventListener('message', onPubDone);
-                          res();
+                            // pubWorker.removeEventListener('message', onPubDone);
+                            // pubWorker.terminate();           // kills the thread
+                            pubWorker.idle = true;
+                            pubWorker.onmessage = null;  
                         }
                         if (data.type === 'error') {
                             console.error(`Worker error on ${data.task}:`, data.error);
                           //   releaseSemaphore();
                           }
                       };
-                      pubWorker.addEventListener('message', onPubDone);
-                    });
+                    
+                    // const pubWorker = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+                    pubWorker.postMessage({ task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                    
+                    // await new Promise(res => {
+                    //   const onPubDone = async ({ data }) => {
+                    //     if (data.task === 'initialScrape' && data.type === 'working'){
+                    //         if(!data.authorFound && data.extended_scrape){
+                    //             return;
+                    //         }
+                    //         publicationProgress+=1;
+                    //         updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                    //         await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    //         publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
+                    //         processedPubsIdx.add(data.publication.pub_idx);
+                    //         authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                    //         authorRegexes = new Array(...new Set(authorRegexes));
+                    //         if(data.publication.year.toString().trim().length === 0){
+                    //             pub_no_year += 1;
+                    //         }
+
+                    //         if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                    //             yearwiseData.get(data.publication.year).set("total_publications", 0);
+                    //         }
+                    //         yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
+
+                    //   let adjustedCitationCount = 0;
+                    //   let citationWeight = 0;
+                    //   let author_pos_string = "0\t0\t0\t0";
+                    //   // switch (publicationData[pub_idx].author_pos) {
+                    // switch (data.publication.author_pos) {
+                    //       case "first_author":
+                    //           author_pos_string = "1\t0\t0\t0";
+                    //           adjustedCitationCount = data.publication.citations * hCiteProp[0];
+                    //           citationWeight = hCiteProp[0];
+                    //           break;
+                    //       case "second_author":
+                    //           author_pos_string = "0\t1\t0\t0";
+                    //           adjustedCitationCount = data.publication.citations * hCiteProp[1];
+                    //           citationWeight = hCiteProp[1];
+                    //           break;
+                    //       case "co_author":
+                    //           author_pos_string = "0\t0\t1\t0";
+                    //           if (data.publication.total_authors > 6 ) { //&& publication.authors.includes("...")
+                    //               adjustedCitationCount = data.publication.citations * 0.1;
+                    //               citationWeight = 0.1;
+                    //           } else {
+                    //               adjustedCitationCount = data.publication.citations * 0.25;
+                    //               citationWeight = 0.25;
+                    //           }
+                    //           break;
+                    //       case "corresponding_author":
+                    //           author_pos_string = "0\t0\t0\t1";
+                    //           adjustedCitationCount = data.publication.citations * hCiteProp[3];
+                    //           citationWeight = hCiteProp[3];
+                    //           break;
+                    //       default:
+                    //           //Author not found
+                    //           console.warn(data.publication.pub_idx, data.publication.author_pos); // DEBUG    
+                    //           break;
+                    //   }
+                    //   tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
+
+                    //     }
+                    //     if (data.type === 'done') {
+                    //         authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
+                    //         authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
+                    //         //MERGE yearwiseData and data.yearwiseData Maps
+                    //         mergeYearwiseData(yearwiseData, data.yearwiseData);
+                    //         pubWorker.removeEventListener('message', onPubDone);
+                    //         pubWorker.terminate();           // kills the thread
+                    //         pubWorker.onmessage = null;  
+                    //       res();
+                    //     }
+                    //     if (data.type === 'error') {
+                    //         console.error(`Worker error on ${data.task}:`, data.error);
+                    //       //   releaseSemaphore();
+                    //       }
+                    //   };
+                    // //   pubWorker.addEventListener('message', onPubDone);
+                    // });
 
                     // MOVING TO WORKER THREAD - START
                     // const authors = publication.authors;
@@ -4291,10 +4427,14 @@ input::-moz-range-thumb {
                             continue;
                         }
 
-                        const pubWorker = new Worker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
-                        pubWorker.postMessage({ task: 'extendedScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
-                        await new Promise(res => {
-                          const onPubDone = async ({ data }) => {
+                        while(!pubWorkerPool.find(w => w.idle)){
+                            await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
+                        }
+                        
+                        const pubWorker = pubWorkerPool.find(w => w.idle);
+                        pubWorker.idle = false;
+
+                        pubWorker.onmessage = async ({ data }) => {
                             if (data.task === 'extendedScrape' && data.type === 'working'){
                                 if(!data.authorFound){
                                     pub_author_no_match += 1;
@@ -4303,12 +4443,14 @@ input::-moz-range-thumb {
                                 publicationProgress += 1;
                                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                                // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                                 publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
-                                authorRegexes = [...authorRegexes, ...data.authorRegexes];
-                                authorRegexes = new Array(...new Set(authorRegexes));
-                                authorRegexesEx = [...authorRegexesEx, ...data.authorRegexesEx];
-                                authorRegexesEx = new Array(...new Set(authorRegexesEx));
+
+                                // authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                                // authorRegexes = new Array(...new Set(authorRegexes));
+                                // authorRegexesEx = [...authorRegexesEx, ...data.authorRegexesEx];
+                                // authorRegexesEx = new Array(...new Set(authorRegexesEx));
+
                                 if(data.publication.year.toString().trim().length === 0){
                                     pub_no_year += 1;
                                 }
@@ -4325,27 +4467,27 @@ input::-moz-range-thumb {
                                 switch (data.publication.author_pos) {
                                     case "first_author":
                                         author_pos_string = "1\t0\t0\t0";
-                                        adjustedCitationCount = citationCount * hCiteProp[0];
+                                        adjustedCitationCount = data.publication.citations * hCiteProp[0];
                                         citationWeight = hCiteProp[0];
                                         break;
                                     case "second_author":
                                         author_pos_string = "0\t1\t0\t0";
-                                        adjustedCitationCount = citationCount * hCiteProp[1];
+                                        adjustedCitationCount = data.publication.citations * hCiteProp[1];
                                         citationWeight = hCiteProp[1];
                                         break;
                                     case "co_author":
                                         author_pos_string = "0\t0\t1\t0";
                                         if (data.publication.total_authors > 6) { // && publication.authors.includes("...")
-                                            adjustedCitationCount = citationCount * 0.1;
+                                            adjustedCitationCount = data.publication.citations * 0.1;
                                             citationWeight = 0.1;
                                         } else {
-                                            adjustedCitationCount = citationCount * 0.25;
+                                            adjustedCitationCount = data.publication.citations * 0.25;
                                             citationWeight = 0.25;
                                         }
                                         break;
                                     case "corresponding_author":
                                         author_pos_string = "0\t0\t0\t1";
-                                        adjustedCitationCount = citationCount * hCiteProp[3];
+                                        adjustedCitationCount = data.publication.citations * hCiteProp[3];
                                         citationWeight = hCiteProp[3];
                                         break;
                                 }
@@ -4358,7 +4500,10 @@ input::-moz-range-thumb {
                                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
                                 //MERGE yearwiseData and data.yearwiseData Maps
                                 mergeYearwiseData(yearwiseData, data.yearwiseData);
-                                pubWorker.removeEventListener('message', onPubDone);
+                                // pubWorker.removeEventListener('message', onPubDone);
+                                // pubWorker.terminate();           // kills the thread
+                                pubWorker.idle = true;           
+                                pubWorker.onmessage = null;  
                               res();
                             }
                             if (data.type === 'error') {
@@ -4366,8 +4511,88 @@ input::-moz-range-thumb {
                               //   releaseSemaphore();
                               }
                           };
-                          pubWorker.addEventListener('message', onPubDone);
-                        });
+                
+
+                        // const pubWorker = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
+                        // pubWorker.addEventListener('message', onPubDone);
+                        pubWorker.postMessage({ task: 'extendedScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                        // await new Promise(res => {
+                        //   const onPubDone = async ({ data }) => {
+                        //     if (data.task === 'extendedScrape' && data.type === 'working'){
+                        //         if(!data.authorFound){
+                        //             pub_author_no_match += 1;
+                        //             // return;
+                        //         }
+                        //         publicationProgress += 1;
+                        //         updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                        //         // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                        //         await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                        //         publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
+                        //         authorRegexes = [...authorRegexes, ...data.authorRegexes];
+                        //         authorRegexes = new Array(...new Set(authorRegexes));
+                        //         authorRegexesEx = [...authorRegexesEx, ...data.authorRegexesEx];
+                        //         authorRegexesEx = new Array(...new Set(authorRegexesEx));
+                        //         if(data.publication.year.toString().trim().length === 0){
+                        //             pub_no_year += 1;
+                        //         }
+                  
+                        //         if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                        //             yearwiseData.get(data.publication.year).set("total_publications", 0);
+                        //         }
+                        //         yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
+                                
+                        //         let adjustedCitationCount = 0;
+                        //         let citationWeight = 0;
+                        //         let author_pos_string = "0\t0\t0\t0";
+
+                        //         switch (data.publication.author_pos) {
+                        //             case "first_author":
+                        //                 author_pos_string = "1\t0\t0\t0";
+                        //                 adjustedCitationCount = data.publication.citations * hCiteProp[0];
+                        //                 citationWeight = hCiteProp[0];
+                        //                 break;
+                        //             case "second_author":
+                        //                 author_pos_string = "0\t1\t0\t0";
+                        //                 adjustedCitationCount = data.publication.citations * hCiteProp[1];
+                        //                 citationWeight = hCiteProp[1];
+                        //                 break;
+                        //             case "co_author":
+                        //                 author_pos_string = "0\t0\t1\t0";
+                        //                 if (data.publication.total_authors > 6) { // && publication.authors.includes("...")
+                        //                     adjustedCitationCount = data.publication.citations * 0.1;
+                        //                     citationWeight = 0.1;
+                        //                 } else {
+                        //                     adjustedCitationCount = data.publication.citations * 0.25;
+                        //                     citationWeight = 0.25;
+                        //                 }
+                        //                 break;
+                        //             case "corresponding_author":
+                        //                 author_pos_string = "0\t0\t0\t1";
+                        //                 adjustedCitationCount = data.publication.citations * hCiteProp[3];
+                        //                 citationWeight = hCiteProp[3];
+                        //                 break;
+                        //         }
+      
+
+                        //         tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
+                        //     }
+                        //     if (data.type === 'done') {
+                        //         authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
+                        //         authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
+                        //         //MERGE yearwiseData and data.yearwiseData Maps
+                        //         mergeYearwiseData(yearwiseData, data.yearwiseData);
+                        //         // pubWorker.removeEventListener('message', onPubDone);
+                        //         pubWorker.terminate();           // kills the thread
+                        //         pubWorker.onmessage = null;  
+                        //       res();
+                        //     }
+                        //     if (data.type === 'error') {
+                        //         console.error(`Worker error on ${data.task}:`, data.error);
+                        //       //   releaseSemaphore();
+                        //       }
+                        //   };
+                        //   pubWorker.addEventListener('message', onPubDone);
+                        // });
 
                         //MOVED TO WORKER THREAD - START
                         // const authors = publication.authors;
@@ -4528,6 +4753,15 @@ input::-moz-range-thumb {
                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
                 await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 retractionWatchDB = await getRetractionWatchDB();
+
+                const  retWorkerPool = [];
+                
+                for (let i = 0; i < MAX_WORKERS/2; i++) {
+                    const w = await createInlineWorker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
+                    w.idle = true;
+                    retWorkerPool.push(w);
+                }
+
                 // console.log(retractionWatchDB); //DEBUG
                 // Check if the publication is retracted
                 // const retractedPubsIdxList = [];
@@ -4550,34 +4784,69 @@ input::-moz-range-thumb {
                     //         // Do something with the result, e.g., update the UI
                     //     }
                     // });
-                    //MOVED to WORKER THREAD
-                    const retractionWorker = new Worker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
-                    retractionWorker.postMessage({ task: 'checkRetraction', batch: [element], retractionWatchDB });
-                    await new Promise(res => {
-                      const onPubDone = async ({ data }) => {
-                        if (data.task === 'checkRetraction' && data.type === 'working'){
-                            retractionProgress += 1;
-                            updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
-                            // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
-                            // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
-                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                            if(data.isPubRetracted) {
-                                retractedPubsIdxList.push(data.publication.index);
-                                retractedPubsCount++;
-                            }
-                        }
-                        if (data.type === 'done') {
-          
-                            retractionWorker.removeEventListener('message', onPubDone);
-                          res();
-                        }
-                        if (data.type === 'error') {
-                            console.error(`Worker error on ${data.task}:`, data.error);
-                          //   releaseSemaphore();
+                    
+                    while(!retWorkerPool.find(w => w.idle)){
+                        await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
+                    }
+                    const retractionWorker = retWorkerPool.find(w => w.idle);
+                    retractionWorker.idle = false;
+                
+                    retractionWorker.onmessage   = async ({ data }) => {
+                          if (data.task === 'checkRetraction' && data.type === 'working'){
+                              retractionProgress += 1;
+                              updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
+                              // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
+                              // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
+                              await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                              if(data.isPubRetracted) {
+                                  retractedPubsIdxList.push(data.publication.index);
+                                  retractedPubsCount++;
+                              }
                           }
-                      };
-                      retractionWorker.addEventListener('message', onPubDone);
-                    });
+                          if (data.type === 'done') {
+            
+                              // retractionWorker.removeEventListener('message', onPubDone);
+                            //   retractionWorker.terminate();           // kills the thread
+                            retractionWorker.idle = true;
+                              retractionWorker.onmessage = null;  
+                            // res();
+                          }
+                          if (data.type === 'error') {
+                              console.error(`Worker error on ${data.task}:`, data.error);
+                            //   releaseSemaphore();
+                            }
+                        };
+
+                    //MOVED to WORKER THREAD
+                    // const retractionWorker = await createInlineWorker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
+                    retractionWorker.postMessage({ task: 'checkRetraction', batch: [element], retractionWatchDB });
+                    // await new Promise(res => {
+                    //   const onPubDone = async ({ data }) => {
+                    //     if (data.task === 'checkRetraction' && data.type === 'working'){
+                    //         retractionProgress += 1;
+                    //         updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
+                    //         // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
+                    //         // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
+                    //         await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                    //         if(data.isPubRetracted) {
+                    //             retractedPubsIdxList.push(data.publication.index);
+                    //             retractedPubsCount++;
+                    //         }
+                    //     }
+                    //     if (data.type === 'done') {
+          
+                    //         // retractionWorker.removeEventListener('message', onPubDone);
+                    //         retractionWorker.terminate();           // kills the thread
+                    //         retractionWorker.onmessage = null;  
+                    //       res();
+                    //     }
+                    //     if (data.type === 'error') {
+                    //         console.error(`Worker error on ${data.task}:`, data.error);
+                    //       //   releaseSemaphore();
+                    //       }
+                    //   };
+                    //   retractionWorker.addEventListener('message', onPubDone);
+                    // });
 
 
                     //MOVING to WORKER THREAD

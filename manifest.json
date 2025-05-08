@@ -244,8 +244,7 @@
         "libs/dom-to-image-more.min.js",
         "workers/publicationWorker.min.js",
         "workers/retractionWorker.min.js",
-        "content/GScholarLENS.js",
-        "content/init.js"
+        "content/GScholarLENS.js"
       ]
     }
   ],
