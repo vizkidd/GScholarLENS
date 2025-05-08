@@ -527,69 +527,52 @@ function createButton() {
  *     "author_pos_cite_qscore"        → Map<pos, Map<quartile, Number>>
  */
 function mergeYearwiseData(globalYearData, workerYearData) {
-    for (const [year, workerYearMap] of workerYearData.entries()) {
-      // If the year isn’t present in global, clone whole map
-      if (!globalYearData.has(year)) {
-        // Deep clone Maps and Arrays
-        const cloneYearMap = new Map();
-        for (const [key, val] of workerYearMap.entries()) {
-          if (val instanceof Map) {
-            cloneYearMap.set(key, new Map(val));       // shallow-map clone
-          } else if (Array.isArray(val)) {
-            cloneYearMap.set(key, [...val]);           // array clone
-          } else {
-            cloneYearMap.set(key, val);                // number or primitive
-          }
+   
+    for (const [year_key, year_data] of workerYearData.entries()) {
+        if(!globalYearData.has(year_key)) {
+            globalYearData.set(year_key, new Map());
         }
-        globalYearData.set(year, cloneYearMap);
-        continue;
-      }
-  
-      // Otherwise merge into existing global map
-      const globalYearMap = globalYearData.get(year);
-  
-      // 1) total_publications
-      if (workerYearMap.has("total_publications")) {
-        const globalTotal = globalYearMap.get("total_publications") || 0;
-        const workerTotal = workerYearMap.get("total_publications");
-        globalYearMap.set("total_publications", globalTotal + workerTotal);
-      }
-  
-      // 2) author_pos_contrib & author_pos_cite_contrib
-      for (const contribKey of ["author_pos_contrib", "author_pos_cite_contrib"]) {
-        const globalContrib = globalYearMap.get(contribKey);
-        const workerContrib = workerYearMap.get(contribKey);
-        if (globalContrib instanceof Map && workerContrib instanceof Map) {
-          for (const [pos, count] of workerContrib.entries()) {
-            globalContrib.set(pos, (globalContrib.get(pos) || 0) + count);
-          }
-        }
-      }
-  
-      // 3) author_pos_cite_map (arrays)
-      const globalMap = globalYearMap.get("author_pos_cite_map");
-      const workerMap = workerYearMap.get("author_pos_cite_map");
-      if (globalMap instanceof Map && workerMap instanceof Map) {
-        for (const [pos, arr] of workerMap.entries()) {
-          const existing = globalMap.get(pos) || [];
-          globalMap.set(pos, existing.concat(arr));
-        }
-      }
-  
-      // 4) author_pos_cite_qscore (nested maps)
-      const globalQ = globalYearMap.get("author_pos_cite_qscore");
-      const workerQ = workerYearMap.get("author_pos_cite_qscore");
-      if (globalQ instanceof Map && workerQ instanceof Map) {
-        for (const [pos, workerQuartMap] of workerQ.entries()) {
-          const globalQuartMap = globalQ.get(pos);
-          if (globalQuartMap instanceof Map) {
-            for (const [quart, val] of workerQuartMap.entries()) {
-              globalQuartMap.set(quart, (globalQuartMap.get(quart) || 0) + val);
+         
+        for (const [data_key, data] of year_data.entries()) {
+            if (!globalYearData.get(year_key).has(data_key)) {
+                globalYearData.get(year_key).set(data_key, new Map());
             }
-          }
+            const globalData = globalYearData.get(year_key).get(data_key);
+            const workerData = data;
+            
+            // Merge the data
+            for (const [key, value] of workerData.entries()) {
+                console.log("Merging:", key, value);
+                if (!globalData.has(key)) {
+                    globalData.set(key, value);
+                } else {
+                    // If the key already exists, merge the values
+                    const existingValue = globalData.get(key);
+                    if (typeof existingValue === 'number' && typeof value === 'number') {
+                        globalData.set(key, existingValue + value);
+                    } else if (existingValue instanceof Map && value instanceof Map) {
+                        for (const [subKey, subValue] of value.entries()) {
+                            if (!existingValue.has(subKey)) {
+                                existingValue.set(subKey, subValue);
+                            } else {
+                                existingValue.set(subKey, existingValue.get(subKey) + subValue);
+                            }
+                        }
+                    } else if (Array.isArray(existingValue) && Array.isArray(value)) {
+                        globalData.set(key, [...new Set([...existingValue, ...value])]);
+                    } else {
+                        console.warn(`Incompatible types for key ${key} in year ${year_key}`);
+                    }
+                }
         }
-      }
+
+
+        }
     }
+
+   
+    console.log("Merging with:", workerYearData);
+    // console.log("Merged yearwise data:", globalYearData);
   }  
 
 function startScraping() {
@@ -4159,8 +4142,11 @@ input::-moz-range-thumb {
                         if (data.type === 'done') {
                             authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
                             authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
-                            //MERGE yearwiseData and data.yearwiseData Maps
-                            mergeYearwiseData(yearwiseData, data.yearwiseData);
+                            if (data.yearwiseData.size > 0) {
+                                //MERGE yearwiseData and data.yearwiseData Maps
+                                // console.log(data.yearwiseData); //DEBUG
+                                mergeYearwiseData(yearwiseData, data.yearwiseData);
+                            }
                             // pubWorker.removeEventListener('message', onPubDone);
                             // pubWorker.terminate();           // kills the thread
                             pubWorker.idle = true;
@@ -4498,8 +4484,10 @@ input::-moz-range-thumb {
                             if (data.type === 'done') {
                                 authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
                                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
-                                //MERGE yearwiseData and data.yearwiseData Maps
-                                mergeYearwiseData(yearwiseData, data.yearwiseData);
+                                if (data.yearwiseData.size > 0) {
+                                    //MERGE yearwiseData and data.yearwiseData Maps
+                                    mergeYearwiseData(yearwiseData, data.yearwiseData);
+                                }
                                 // pubWorker.removeEventListener('message', onPubDone);
                                 // pubWorker.terminate();           // kills the thread
                                 pubWorker.idle = true;           
@@ -4731,8 +4719,14 @@ input::-moz-range-thumb {
                     }
                 } //Extended Scrape - End
 
-                //MOVED TO WORKER THREAD - END
+                while (pubWorkerPool.some(w => !w.idle)) {
+                    await new Promise(r => setTimeout(r, 100));  // Wait for all workers to finish
+                }
 
+                pubWorkerPool.forEach(w => w.terminate()); // Terminate all workers
+
+                //MOVED TO WORKER THREAD - END
+                console.log(yearwiseData); //DEBUG
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
 
@@ -4887,7 +4881,13 @@ input::-moz-range-thumb {
                     // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
 
                 }// for - End);
-                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                
+                while (retWorkerPool.some(w => !w.idle)) {
+                    await new Promise(r => setTimeout(r, 100));  // Wait for all workers to finish
+                }
+
+                retWorkerPool.forEach(w => w.terminate()); // Terminate all workers
+                // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 return true;
             }
 
