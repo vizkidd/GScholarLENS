@@ -276,6 +276,7 @@ async function createInlineWorker(pathInExtension) {
     return worker;
   }
 
+
 //MOVED to pub worker thread
 // const replaceSpecialChars = (str) => {
 //     const charMap = {
@@ -516,6 +517,52 @@ function createButton() {
 // }
 
 /**
+ * Recursively converts a plain‐object or primitive into the desired Map/Array/primitive.
+ *   - Arrays are returned as‐is.
+ *   - Plain objects become Maps whose values are themselves revived.
+ *   - Primitives (string/number/boolean) are returned directly.
+ */
+function reviveValue(val) {
+    if (Array.isArray(val)) {
+      // It might be the top‐level [year, innerEntries] tuples, or arrays of entries.
+      return val.map(item => reviveValue(item));
+    }
+    if (val !== null && typeof val === 'object') {
+      // Convert each own‐property into a Map entry
+      return new Map(
+        Object.entries(val).map(([k, v]) => [k, reviveValue(v)])
+      );
+    }
+    // primitive
+    return val;
+  }
+  
+  /**
+   * Rebuilds your top‐level yearwiseData from the serialized nested array:
+   *   [ [ year, [ [key, valueObj], [key, valueObj], … ] ], … ]
+   *
+   * @param {Array} serializedArr  finalZeroCopyArr.yearwiseData
+   * @returns {Map<string, Map<string, any>>}  exactly your original Map<year, Map<…>>
+   */
+  function rebuildYearwiseData(serializedArr) {
+    const result = new Map();
+  
+    for (const [year, innerArr] of serializedArr) {
+      // innerArr is an array of [ key, plainObject ] tuples
+      const innerMap = new Map();
+  
+      for (const [key, plainObj] of innerArr) {
+        // reviveValue will turn plainObj into a Map of Maps/arrays/primitives recursively
+        innerMap.set(key, reviveValue(plainObj));
+      }
+  
+      result.set(year, innerMap);
+    }
+  
+    return result;
+  }
+
+/**
  * Deep-merges workerYearData into globalYearData.
  * Both are Maps with:
  *   key = year
@@ -526,13 +573,18 @@ function createButton() {
  *     "author_pos_cite_map"           → Map<pos, Array>
  *     "author_pos_cite_qscore"        → Map<pos, Map<quartile, Number>>
  */
-function mergeYearwiseData(globalYearData, workerYearData) {
-   
+async function mergeYearwiseData(globalYearData, workerYearData) {
+//    console.log(workerYearData);
+//    console.log(typeof workerYearData); //DEBUG 
+//    console.log("loop1"); //DEBUG
+//    workerYearData.forEach((year_data, year_key) => {
     for (const [year_key, year_data] of workerYearData.entries()) {
+
         if(!globalYearData.has(year_key)) {
             globalYearData.set(year_key, new Map());
         }
-         
+        // console.log("loop2"); //DEBUG
+        // year_data.forEach((data, data_key) => {
         for (const [data_key, data] of year_data.entries()) {
             if (!globalYearData.get(year_key).has(data_key)) {
                 globalYearData.get(year_key).set(data_key, new Map());
@@ -540,9 +592,11 @@ function mergeYearwiseData(globalYearData, workerYearData) {
             const globalData = globalYearData.get(year_key).get(data_key);
             const workerData = data;
             
+            // console.log("loop3"); //DEBUG
             // Merge the data
+            // workerData.forEach((value, key) => {
             for (const [key, value] of workerData.entries()) {
-                console.log("Merging:", key, value);
+                // console.log("Merging:", key, value);
                 if (!globalData.has(key)) {
                     globalData.set(key, value);
                 } else {
@@ -551,6 +605,8 @@ function mergeYearwiseData(globalYearData, workerYearData) {
                     if (typeof existingValue === 'number' && typeof value === 'number') {
                         globalData.set(key, existingValue + value);
                     } else if (existingValue instanceof Map && value instanceof Map) {
+                        // console.log("loop4"); //DEBUG
+                        // value.forEach((subValue, subKey) => {
                         for (const [subKey, subValue] of value.entries()) {
                             if (!existingValue.has(subKey)) {
                                 existingValue.set(subKey, subValue);
@@ -571,7 +627,7 @@ function mergeYearwiseData(globalYearData, workerYearData) {
     }
 
    
-    console.log("Merging with:", workerYearData);
+    // console.log("Merging with:", workerYearData);
     // console.log("Merged yearwise data:", globalYearData);
   }  
 
@@ -3005,6 +3061,9 @@ input::-moz-range-thumb {
                 getPosQScoresCumulative("NA", plottingMinYear, plottingMaxYear)
             ];
 
+            console.log(posQScoresTotals); //DEBUG
+            console.log(posQScores); //DEBUG
+
             const qScorePosStackedChartData = {
                 // labels: ['First Author Q*\nTotal:' + getTotalQScores("first_author"), 'Second Author Q*\nTotal:' + getTotalQScores("second_author"), 'Co-Author Q*\nTotal:' + getTotalQScores("co_author"), 'Corresponding Author Q*\nTotal:' + getTotalQScores("corresponding_author")],
                 labels: ['First Author Q*\nTotal:' + posQScoresTotals[0], 'Second Author Q*\nTotal:' + posQScoresTotals[1], 'Co-Author Q*\nTotal:' + posQScoresTotals[2], 'Corresponding Author Q*\nTotal:' + posQScoresTotals[3]],
@@ -3818,6 +3877,7 @@ input::-moz-range-thumb {
             // }
 
             function processQScore(author_pos, year, qScore) {
+                console.log("Author Position:", author_pos, "Year:", year, "QScore:", qScore); //DEBUG
                 //Fetch and process QScore data
                 if (author_pos === "NA") {
                     return;
@@ -4016,6 +4076,7 @@ input::-moz-range-thumb {
             async function processPublicationsData() {
                 let extended_scrape = false;
                 const processedPubsIdx = new Set();
+                const encoder = new TextEncoder();
                 const  pubWorkerPool = [];
                 
                 for (let i = 0; i < MAX_WORKERS/2; i++) {
@@ -4078,16 +4139,28 @@ input::-moz-range-thumb {
 
 
                     // MOVED TO WORKER THREAD - START
-                    pubWorker.onmessage = async ({ data }) => {
+                    pubWorker.onmessage = async ({ data:buffer }) => {
+                        // console.log("Worker Data:", buffer); //DEBUG    
+                        // const buffer = data.data;
+                            // 2) Wrap in a Uint8Array & decode UTF-8 back to a string
+                            const decoder = new TextDecoder('utf-8');
+                            const json    = decoder.decode(new Uint8Array(buffer));
+                            // console.log(json); //DEBUG
+                            // 3) Parse JSON back into your plain object/array form
+                            const data   = JSON.parse(json);
+                            // console.log(data); //DEBUG
                         if (data.task === 'initialScrape' && data.type === 'working'){
+                            publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
+                            console.log(publicationData[data.publication.index].authors);//DEBUG
                             if(!data.authorFound && data.extended_scrape){
+                                extended_scrape = true;
                                 return;
                             }
                             publicationProgress+=1;
                             updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                             await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                            publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
-                            processedPubsIdx.add(data.publication.pub_idx);
+                            // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
+                            processedPubsIdx.add(data.publication.index);
 
                             // authorRegexes = [...authorRegexes, ...data.authorRegexes];
                             // authorRegexes = new Array(...new Set(authorRegexes));
@@ -4142,10 +4215,21 @@ input::-moz-range-thumb {
                         if (data.type === 'done') {
                             authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
                             authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
-                            if (data.yearwiseData.size > 0) {
+                            // console.log(data);
+                            // 4) Rebuild the Map-of-Maps if you need full Map APIs:
+                            // const workerYearData = new Map(
+                            //     data.yearwiseData.map(([year, innerEntries]) => [
+                            //     year,
+                            //     new Map(innerEntries.entries().map(([key, value]) => new Map(value.entries().map(([k, v]) => [k, v]))))
+                            //   ])
+                            // );
+                            const workerYearData = rebuildYearwiseData(data.yearwiseData);
+
+                            // console.log(workerYearData);
+                            if (data.yearwiseData.length > 0 && workerYearData.size > 0) {
                                 //MERGE yearwiseData and data.yearwiseData Maps
                                 // console.log(data.yearwiseData); //DEBUG
-                                mergeYearwiseData(yearwiseData, data.yearwiseData);
+                                await mergeYearwiseData(yearwiseData, workerYearData);
                             }
                             // pubWorker.removeEventListener('message', onPubDone);
                             // pubWorker.terminate();           // kills the thread
@@ -4158,8 +4242,17 @@ input::-moz-range-thumb {
                           }
                       };
                     
+                    //   const initZeroCopyArr =  {
+                    //     task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong 
+                    //   };
+                    //     // 1) Turn to JSON
+                    //     const initJson = JSON.stringify(initZeroCopyArr);
+                    //     // 2) Encode as UTF-8 bytes in a Uint8Array
+                    //     const initBytes   = encoder.encode(initJson);            // Uint8Array
                     // const pubWorker = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
                     pubWorker.postMessage({ task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                    // pubWorker.postMessage(initBytes.buffer, [initBytes.buffer]); // Send the ArrayBuffer to the worker
+
                     
                     // await new Promise(res => {
                     //   const onPubDone = async ({ data }) => {
@@ -4368,13 +4461,18 @@ input::-moz-range-thumb {
 
                 } //Initial Scraping - End
 
-                // console.log("Extended Scraping"); // DEBUG
                 //Extended Scrape - Scrape the extended author's list for publications with insufficient author info (or multi-matching or duplicating author names)
                 // if (urls.length > 0) {
                 if (extended_scrape) {
+                    console.log("Extended Scraping"); // DEBUG                    
+                    while (pubWorkerPool.some(w => !w.idle)) {
+                        await new Promise(r => setTimeout(r, 100));  // Wait for all workers to finish
+                    }
+
                     //Fetch all the URLs in one go
                     let urls = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.publicationURL);
                     let pub_titles = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.title);
+                    console.log(pub_titles); //DEBUG
                     const authorsListExt = await fetchFullAuthorsWithLimit(pub_titles, urls, urls.length, 0);
                     // console.warn(urls); //DEBUG
                     urls = [];
@@ -4420,8 +4518,18 @@ input::-moz-range-thumb {
                         const pubWorker = pubWorkerPool.find(w => w.idle);
                         pubWorker.idle = false;
 
-                        pubWorker.onmessage = async ({ data }) => {
+                        pubWorker.onmessage = async ({ data:buffer }) => {
+                            // console.log("Worker Data:", buffer); //DEBUG    
+                            // const buffer = data.data;
+                                // 2) Wrap in a Uint8Array & decode UTF-8 back to a string
+                                const decoder = new TextDecoder('utf-8');
+                                const json    = decoder.decode(new Uint8Array(buffer));
+                                // console.log(json); //DEBUG
+                                // 3) Parse JSON back into your plain object/array form
+                                const data   = JSON.parse(json);
                             if (data.task === 'extendedScrape' && data.type === 'working'){
+                                publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
+                                console.log(publicationData[data.publication.index].authors);//DEBUG
                                 if(!data.authorFound){
                                     pub_author_no_match += 1;
                                     // return;
@@ -4430,8 +4538,7 @@ input::-moz-range-thumb {
                                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                                publicationData[data.publication.pub_idx] = data.publication; // Update the publication data with the modified publication values
-
+                                // console.log("Author Pos: "+data.publication.author_pos); //DEBUG
                                 // authorRegexes = [...authorRegexes, ...data.authorRegexes];
                                 // authorRegexes = new Array(...new Set(authorRegexes));
                                 // authorRegexesEx = [...authorRegexesEx, ...data.authorRegexesEx];
@@ -4484,15 +4591,26 @@ input::-moz-range-thumb {
                             if (data.type === 'done') {
                                 authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
                                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
-                                if (data.yearwiseData.size > 0) {
+                                // console.log(data);
+                                // // 4) Rebuild the Map-of-Maps if you need full Map APIs:
+                                // const workerYearData = new Map(
+                                //     data.yearwiseData.map(([year, innerEntries]) => [
+                                //     year,
+                                //     new Map(innerEntries)
+                                // ])
+                                // );
+                                const workerYearData = rebuildYearwiseData(data.yearwiseData);
+
+                                // console.log(workerYearData);
+                                if (data.yearwiseData.length > 0 && workerYearData.size > 0) {
                                     //MERGE yearwiseData and data.yearwiseData Maps
-                                    mergeYearwiseData(yearwiseData, data.yearwiseData);
+                                    await mergeYearwiseData(yearwiseData, workerYearData);
                                 }
                                 // pubWorker.removeEventListener('message', onPubDone);
                                 // pubWorker.terminate();           // kills the thread
                                 pubWorker.idle = true;           
                                 pubWorker.onmessage = null;  
-                              res();
+                            //   res();
                             }
                             if (data.type === 'error') {
                                 console.error(`Worker error on ${data.task}:`, data.error);
@@ -4733,6 +4851,7 @@ input::-moz-range-thumb {
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
+                    console.log(index, publication.title)
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
 
                     publicationProgress += 1;
