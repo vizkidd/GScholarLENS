@@ -867,7 +867,7 @@ function startScraping() {
         // qPosCount.get("corresponding_author").set("Q3",0);
         // qPosCount.get("corresponding_author").set("Q4",0);
         // qPosCount.get("corresponding_author").set("NA", 0);
-
+        
         // Loading Bar
         // Create the loading bar container
         const loadingBarContainer = document.createElement("div");
@@ -878,34 +878,61 @@ function startScraping() {
         loadingBarContainer.style.overflow = "hidden";
         loadingBarContainer.style.position = "relative";  // Needed for centering text overlay
 
-        // Create the loading bar itself
-        const loadingBar = document.createElement("div");
-        loadingBar.style.width = "0%";  // Start at 0%
-        loadingBar.style.height = "20px";
-        loadingBar.style.backgroundColor = "#4caf50";
-        loadingBar.style.transition = "width 0.3s ease";  // Smooth transition effect
-        // loadingBar.style.zIndex = "1";  // Ensure the loading bar is behind the text
+        // // Create a text element to show progress inside the loading bar
+        // const loadingText = document.createElement("span");
+        // loadingText.id="progress_text";
+        // loadingText.style.position = "absolute";
+        // loadingText.style.width = "100%";
+        // loadingText.style.textAlign = "center";
+        // loadingText.style.marginTop = "2px";
+        // loadingText.style.fontSize = "calc(0.3em + 0.55vw)";
+        // loadingText.style.color = "#000"; // Ensure text is visible
+        // loadingText.style.whiteSpace = "nowrap"; // Prevents text from wrapping
+        // loadingText.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+        // loadingText.style.zIndex = (navigator.hardwareConcurrency * 2) + 1;  // Ensure the loading bar is behind the text
+        // loadingBarContainer.appendChild(loadingText);
 
-        // Create a text element to show progress inside the loading bar
-        const loadingText = document.createElement("span");
-        loadingText.style.position = "absolute";
-        loadingText.style.width = "100%";
-        loadingText.style.textAlign = "center";
-        loadingText.style.marginTop = "2px";
-        loadingText.style.fontSize = "calc(0.3em + 0.55vw)";
-        loadingText.style.color = "#000";  // Ensure text is visible
-        loadingText.style.whiteSpace = "nowrap";  // Prevents text from wrapping
-        loadingText.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+        const loadingBarMaps = new Map();
+        // Create the loading bar itself
+        loadingBarMaps.set("main", createLoadingBar("main",loadingBarMaps.size + 1, "", "#4caf50")); 
         // loadingText.style.zIndex = "2";  // Ensure the loading bar is behind the text
 
-        loadingBarContainer.appendChild(loadingText);  // Append the text overlay to the container        
-        // Append the loading bar to the container
-        loadingBarContainer.appendChild(loadingBar);
+        function createLoadingBar(element_id, zIndex, initText, progressColor = "#4caf50") {
+            const parentContainer = document.createElement("div");
+            parentContainer.id = element_id;
+            // Create a text element to show progress inside the loading bar
+            const loadingText = document.createElement("span");
+            loadingText.id= element_id + "_text";
+            loadingText.style.position = "absolute";
+            loadingText.style.width = "100%";
+            loadingText.style.textAlign = "center";
+            loadingText.style.marginTop = "2px";
+            loadingText.style.fontSize = "calc(0.3em + 0.55vw)";
+            loadingText.style.color = "#000"; // Ensure text is visible
+            loadingText.style.whiteSpace = "nowrap"; // Prevents text from wrapping
+            loadingText.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+            loadingText.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) + 1;  // Ensure the loading bar is behind the text
+            
+            const loadingBar = document.createElement("div");
+            loadingBar.id= element_id + "_bar";
+            loadingBar.style.width = "0%"; // Start at 0%
+            loadingBar.style.height = "20px";
+            loadingBar.style.backgroundColor = progressColor;
+            loadingBar.style.transition = "width 0.3s ease"; // Smooth transition effect
+            loadingBar.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) ;  // Ensure the loading bar is behind the text
+            
 
+            loadingBarContainer.appendChild(loadingText);  // Append the text overlay to the container        
+            // // Append the loading bar to the container
+            // loadingBarContainer.appendChild(loadingBar);
+            loadingBarContainer.appendChild(loadingBar);
 
-        async function updateLoadingBar(progress, loadingBarText = "Progress: ", force = false, timeout = 20, step = 5) {
+            return parentContainer;
+        }
+
+        async function updateLoadingBar(loadingBarID = "main", progress, loadingBarText = "Progress: ", force = false, timeout = 20, step = 5) {
             if (progress <= 0 || progress >= 100 || progress % step || force) {
-                setTimeout(updateLoadingBarCall, timeout, progress, loadingBarText);
+                setTimeout(updateLoadingBarCall, timeout, loadingBarID, progress, loadingBarText);
                 // await new Promise((updateLoadingBarCall, timeout, progress, loadingBarText) => setTimeout(updateLoadingBarCall, timeout, progress, loadingBarText));
                 await Promise.resolve();
             }
@@ -916,12 +943,30 @@ function startScraping() {
 
         }
 
-        async function updateLoadingBarCall(progress, loadingBarText = "Progress: ") {
+        async function updateLoadingBarCall(loadingBarID = "main", progress, loadingBarText = "Progress: ") {
             // if (progress % totalPublications) {
             //     setTimeout(updateLoadingBar, 20, progress, loadingBarText);
             // }
-            loadingBar.style.width = progress.toFixed(2) + "%";
-            loadingText.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+
+            
+            const parentContainer = loadingBarMaps.get(loadingBarID);
+            if (parentContainer) {       
+                const progress_text = document.getElementById(loadingBarID + "_text");
+                const progress_bar = document.getElementById(loadingBarID + "_bar");
+                progress_bar.style.width = progress.toFixed(2) + "%";
+                // loadingText.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+                progress_text.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+                if (progress >= 100) {
+                    await new Promise(r => setTimeout(r, 500));  // delete loading bar after few (?)seconds
+                    progress_text.remove();
+                    progress_bar.remove();
+                    loadingBarMaps.delete(loadingBarID);
+                }
+            }
+        
+            // loadingBar.style.width = progress.toFixed(2) + "%";
+            // loadingText.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+            
             // console.log("Progress: " + progress + "%"); //DEBUG
             // console.log("Progress Bar: " + loadingBar.style.width + "%"); //DEBUG
         }
@@ -3751,7 +3796,7 @@ input::-moz-range-thumb {
                         });
                         
                         results.push(...await Promise.all(promises));
-                        updateLoadingBar((index / urls.length) * 100, "Fetching URLs(" + index + "): ");
+                        updateLoadingBar("main", (index / urls.length) * 100, "Fetching URLs(" + index + "): ");
                         // setTimeout(updateLoadingBar, 20, (index / urls.length) * 100, "Fetching URLs(" + index + "): ");
                         await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                         await requestBatch();
@@ -4082,6 +4127,9 @@ input::-moz-range-thumb {
                 const encoder = new TextEncoder();
                 const  pubWorkerPool = [];
                 
+                loadingBarMaps.set("publication_progress", createLoadingBar("publication_progress", loadingBarMaps.size + 1, "Processing Publications...", "rgb(103, 0, 172)"));
+                updateLoadingBar("publication_progress", 0, "Processing Publications...");
+
                 for (let i = 0; i < MAX_WORKERS/2; i++) {
                     const w = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
                     w.idle = true;
@@ -4161,7 +4209,7 @@ input::-moz-range-thumb {
                                 return;
                             }
                             publicationProgress+=1;
-                            updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                            updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                             await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                             // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
                             processedPubsIdx.add(data.publication.index);
@@ -4540,7 +4588,7 @@ input::-moz-range-thumb {
                                     // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
                                 }
                                 publicationProgress += 1;
-                                updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                                updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                                 // console.log("Author Pos: "+data.publication.author_pos); //DEBUG
@@ -4847,12 +4895,14 @@ input::-moz-range-thumb {
                 }
 
                 pubWorkerPool.forEach(w => w.terminate()); // Terminate all workers
-
+                updateLoadingBar("publication_progress", 100, "Processing Publications...Done!", true);
                 //MOVED TO WORKER THREAD - END
                 console.log(yearwiseData); //DEBUG
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
 
+                loadingBarMaps.set("journal_progress", createLoadingBar("journal_progress", loadingBarMaps.size + 1, "Processing Journal Rankings...", "rgb(0, 97, 207)"));
+                updateLoadingBar("journal_progress", 0, "Processing Journal Rankings...");
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
@@ -4860,15 +4910,19 @@ input::-moz-range-thumb {
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
 
                     publicationProgress += 1;
-                    updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
+                    updateLoadingBar("journal_progress", (publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
                     // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
                     await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 });
+                updateLoadingBar("journal_progress", 100, "Processing Journal Rankings...Done!", true);
                 return true;
             }
 
-            async function checkRetractedPublications(publicationProgress) {
-                updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
+            async function checkRetractedPublications() {
+                
+                loadingBarMaps.set("retract_progress", createLoadingBar("retract_progress", loadingBarMaps.size + 1, "Processing Retractions...", "rgb(255, 251, 0)"));
+                updateLoadingBar("retract_progress", 0, "Processing Retractions...");
+                // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
                 await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                 retractionWatchDB = await getRetractionWatchDB();
 
@@ -4912,7 +4966,7 @@ input::-moz-range-thumb {
                     retractionWorker.onmessage   = async ({ data }) => {
                           if (data.task === 'checkRetraction' && data.type === 'working'){
                               retractionProgress += 1;
-                              updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
+                              updateLoadingBar("retract_progress",(retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
                               // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
                               // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
                               await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
@@ -5012,12 +5066,13 @@ input::-moz-range-thumb {
 
                 retWorkerPool.forEach(w => w.terminate()); // Terminate all workers
                 // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                updateLoadingBar("retract_progress", 100, "Processing Retractions...Done!");
                 return true;
             }
 
             const [result1, result2] = await Promise.all([
                 processPublicationsData(),
-                checkRetractedPublications(publicationProgress)
+                checkRetractedPublications()
             ]);
 
             // console.log(result1, result2); //DEBUG
@@ -5145,7 +5200,7 @@ input::-moz-range-thumb {
                 await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             });
 
-            updateLoadingBar(99, "Processing Retractions... ", true);
+            updateLoadingBar("main", 99, "Processing Retractions... ", true);
             // setTimeout(updateLoadingBar, 20, 0, "Processing Retractions... ");
             await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             // const csvPath = chrome.runtime.getURL("data/retraction_watch_stripped.csv");
@@ -5558,12 +5613,13 @@ input::-moz-range-thumb {
             }
         };
 
-        loadingText.textContent = "Waiting for other GScholarLENS processes to complete...";
+        // loadingText.textContent = "Waiting for other GScholarLENS processes to complete...";
+        updateLoadingBar("main", 0, "Waiting for other GScholarLENS processes to complete...", true);
         chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
             try {
                 //Wait for semaphore, update loading bar, click 'show more' to expand publications table/list and scrape publications
                 console.log(response.status);  // Should log "Semaphore acquired" once acquired
-                updateLoadingBar(0, "Expanding Publications List: ", true);
+                updateLoadingBar("main", 0, "Expanding Publications List: ", true);
                 const currentTabURL = window.location.href.toString();
                 fetch(currentTabURL).then((captchaTest) => {
                     if (captchaTest.status != 200) {
@@ -5604,4 +5660,5 @@ input::-moz-range-thumb {
     // }
 
     return true;
+
 }
