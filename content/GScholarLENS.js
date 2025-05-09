@@ -633,6 +633,7 @@ async function mergeYearwiseData(globalYearData, workerYearData) {
 
 function startScraping() {
     try {
+        const start_time = performance.now();
         // Listen for visibility change events
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && profileScraped === true) {
@@ -2664,6 +2665,8 @@ input::-moz-range-thumb {
                 getQScoreCitationsCumulative("NA", plottingMinYear, plottingMaxYear)
             ];
 
+            console.log(qScoreCitations); //DEBUG
+
             const authorCitationsChartData = {
                 // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
                 labels: ['First Author Citations\nTotal:' + posTotalCitations[0], 'Second Author Citations\nTotal:' + posTotalCitations[1], 'Co-Author Citations\nTotal:' + posTotalCitations[2], 'Corresponding Author Citations\nTotal:' + posTotalCitations[3]],
@@ -3061,8 +3064,8 @@ input::-moz-range-thumb {
                 getPosQScoresCumulative("NA", plottingMinYear, plottingMaxYear)
             ];
 
-            console.log(posQScoresTotals); //DEBUG
-            console.log(posQScores); //DEBUG
+            // console.log(posQScoresTotals); //DEBUG
+            // console.log(posQScores); //DEBUG
 
             const qScorePosStackedChartData = {
                 // labels: ['First Author Q*\nTotal:' + getTotalQScores("first_author"), 'Second Author Q*\nTotal:' + getTotalQScores("second_author"), 'Co-Author Q*\nTotal:' + getTotalQScores("co_author"), 'Corresponding Author Q*\nTotal:' + getTotalQScores("corresponding_author")],
@@ -3877,7 +3880,7 @@ input::-moz-range-thumb {
             // }
 
             function processQScore(author_pos, year, qScore) {
-                console.log("Author Position:", author_pos, "Year:", year, "QScore:", qScore); //DEBUG
+                // console.log("Author Position:", author_pos, "Year:", year, "QScore:", qScore); //DEBUG
                 //Fetch and process QScore data
                 if (author_pos === "NA") {
                     return;
@@ -4151,14 +4154,15 @@ input::-moz-range-thumb {
                             // console.log(data); //DEBUG
                         if (data.task === 'initialScrape' && data.type === 'working'){
                             publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
-                            console.log(publicationData[data.publication.index].authors);//DEBUG
+                            // console.log(publicationData[data.publication.index].authors);//DEBUG
                             if(!data.authorFound && data.extended_scrape){
                                 extended_scrape = true;
+                            // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
                                 return;
                             }
                             publicationProgress+=1;
                             updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                            await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                            await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                             // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
                             processedPubsIdx.add(data.publication.index);
 
@@ -4464,7 +4468,7 @@ input::-moz-range-thumb {
                 //Extended Scrape - Scrape the extended author's list for publications with insufficient author info (or multi-matching or duplicating author names)
                 // if (urls.length > 0) {
                 if (extended_scrape) {
-                    console.log("Extended Scraping"); // DEBUG                    
+                    // console.log("Extended Scraping"); // DEBUG                    
                     while (pubWorkerPool.some(w => !w.idle)) {
                         await new Promise(r => setTimeout(r, 100));  // Wait for all workers to finish
                     }
@@ -4472,7 +4476,7 @@ input::-moz-range-thumb {
                     //Fetch all the URLs in one go
                     let urls = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.publicationURL);
                     let pub_titles = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.title);
-                    console.log(pub_titles); //DEBUG
+                    // console.log(pub_titles); //DEBUG
                     const authorsListExt = await fetchFullAuthorsWithLimit(pub_titles, urls, urls.length, 0);
                     // console.warn(urls); //DEBUG
                     urls = [];
@@ -4529,15 +4533,16 @@ input::-moz-range-thumb {
                                 const data   = JSON.parse(json);
                             if (data.task === 'extendedScrape' && data.type === 'working'){
                                 publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
-                                console.log(publicationData[data.publication.index].authors);//DEBUG
+                                // console.log(publicationData[data.publication.index].authors);//DEBUG
                                 if(!data.authorFound){
                                     pub_author_no_match += 1;
                                     // return;
+                                    // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
                                 }
                                 publicationProgress += 1;
                                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                                 // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                                await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                                 // console.log("Author Pos: "+data.publication.author_pos); //DEBUG
                                 // authorRegexes = [...authorRegexes, ...data.authorRegexes];
                                 // authorRegexes = new Array(...new Set(authorRegexes));
@@ -4851,7 +4856,7 @@ input::-moz-range-thumb {
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
-                    console.log(index, publication.title)
+                    // console.log(index, publication.title, publication.authors)
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
 
                     publicationProgress += 1;
@@ -4864,7 +4869,7 @@ input::-moz-range-thumb {
 
             async function checkRetractedPublications(publicationProgress) {
                 updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
-                await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                 retractionWatchDB = await getRetractionWatchDB();
 
                 const  retWorkerPool = [];
@@ -4910,7 +4915,7 @@ input::-moz-range-thumb {
                               updateLoadingBar((retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
                               // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
                               // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
-                              await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                              await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                               if(data.isPubRetracted) {
                                   retractedPubsIdxList.push(data.publication.index);
                                   retractedPubsCount++;
@@ -5518,7 +5523,10 @@ input::-moz-range-thumb {
             });
             // uncomment if you want to use popup again
             // sendResponse({ authorName: authorName, publications: publicationData });
-
+            const end_time = performance.now()
+            const time_difference_min = (end_time - start_time) / (1000 * 60);
+            const time_string = time_difference_min % 1 === 0 ? `${time_difference_min} minutes` : `${time_difference_min.toFixed(2) * 60} seconds`;
+            console.info(`Time taken by GScholarLENS: ${time_string}`);
         }; // scrapePublications - End
 
         // Click "Show More" until all publications are loaded
