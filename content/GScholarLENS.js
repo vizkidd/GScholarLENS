@@ -5,9 +5,36 @@ const schibsted_grotesk = new FontFace('schibsted-grotesk', `url(${fontPath})`);
 let excelData = false;
 let retractionWatchDB = false;
 let profileScraped = false;
-
+let isDesktop = false;
 // Create TSV content
 let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
+
+(async () => {
+  let isDesktop = true;
+
+  try {
+    // Use the appropriate API for each browser
+    const getPlatformInfo = (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getPlatformInfo)
+      ? browser.runtime.getPlatformInfo
+      : (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo)
+        ? () => new Promise(resolve => chrome.runtime.getPlatformInfo(resolve))
+        : null;
+
+    if (!getPlatformInfo) {
+        isDesktop = false;
+      return;
+    }
+
+    const info = await getPlatformInfo();
+    isDesktop = info.os !== 'android';
+
+    // Proceed with the rest of your extension logic
+    console.log(`Running on ${info.os}. isDesktop: ${isDesktop}`);
+  } catch (error) {
+    console.error('Error determining platform:', error);
+  }
+})();
+
 
 // Add the font to the document once it's loaded
 schibsted_grotesk.load().then((loadedFont) => {
@@ -1630,7 +1657,7 @@ input::-moz-range-thumb {
                             <br>
                             <center><span id="pubmachine_banner" style="color: blue; font-weight: bold;"></span></center>
                             <br>
-                            <div class="range_slider_container">
+                            <div id="rangeSliderDiv" class="range_slider_container">
                                 <div class="toggle_container">
                                     <label for="peryear_checkbox" style="transform: translateY(-3px);">Per-Year</label>
                                     <input type="checkbox" id="peryear_checkbox"/>
@@ -2644,722 +2671,456 @@ input::-moz-range-thumb {
 
         // Function to create and display the chart and progress bars
         function updateAuthorChart() {
-
-            // console.log(selectedMinYear, selectedPeryearCheck ? selectedSingleYear : selectedMaxYear); //DEBUG
-            // console.log(yearwiseData); //DEBUG
-            // console.log(yearList); //DEBUG
-            // console.log(selectedPeryearCheck, selectedCumulativeCheck, selectedSingleYear, selectedMinYear, selectedMaxYear); //DEBUG
-            // const plottingMinYear = selectedPeryearCheck ?  selectedCumulativeCheck ? selectedMinYear : selectedSingleYear : selectedMinYear;
             const plottingMinYear = selectedPeryearCheck ? selectedCumulativeCheck ? minYear : selectedSingleYear : selectedMinYear;
-            const plottingMaxYear = selectedPeryearCheck ? selectedSingleYear : selectedMaxYear;
-
-            // hFirst = hIndexArr[0];
-            // hSecond = hIndexArr[1];
-            // hOther = hIndexArr[2];
-            // hCO = hIndexArr[3];
-
-            // // Calculate shIndex as 90% of hFirst, 50% of hSecond, 10% of hOther, and 100% of hCO
-            // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
-
-            // document.getElementById("sh_index").textContent = `Sh-Index:${shIndex}`
-            // document.getElementById("h_first").textContent = hFirst.toString();
-            // document.getElementById("h_second").textContent = hSecond.toString();
-            // document.getElementById("h_other").textContent = hOther.toString();
-            // document.getElementById("h_co").textContent = hCO.toString();
-
-            // console.log(selectedPeryearCheck, selectedCumulativeCheck, plottingMinYear, plottingMaxYear); //DEBUG
-
-
-            // firstAuthorCount = author_pos_contrib.get("first_author");
-            // secondAuthorCount = author_pos_contrib.get("second_author");
-            // correspondingAuthorCount = author_pos_contrib.get("corresponding_author");
-            // coAuthorCount = author_pos_contrib.get("co_author");
-
-            // firstAuthorCitationsTotal = author_pos_cite_contrib.get("first_author");
-            // secondAuthorCitationsTotal = author_pos_cite_contrib.get("second_author");
-            // correspondingAuthorCitationsTotal = author_pos_cite_contrib.get("corresponding_author");
-            // coAuthorCitationsTotal = author_pos_cite_contrib.get("co_author");
-            // const totalAuthorCitations = firstAuthorCitationsTotal + secondAuthorCitationsTotal + correspondingAuthorCitationsTotal + coAuthorCitationsTotal;
-
-
-            // const firstAuthorCitationsPercentage = ((firstAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
-            // const secondAuthorCitationsPercentage = ((secondAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
-            // const correspondingAuthorCitationsPercentage = ((correspondingAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
-            // const coAuthorCitationsPercentage = ((coAuthorCitationsTotal / totalAuthorCitations) * 100).toFixed(2);
-
-            // //If you want it to add upto 100 then use this
-            // const totalAuthorContributions = firstAuthorCount + secondAuthorCount + correspondingAuthorCount + coAuthorCount;
-
-            // // firstAuthorPercentage = ((firstAuthorCount / totalPublications) * 100).toFixed(2);
-            // // secondAuthorPercentage = ((secondAuthorCount / totalPublications) * 100).toFixed(2);
-            // // correspondingAuthorPercentage = ((correspondingAuthorCount / totalPublications) * 100).toFixed(2);
-            // // coAuthorPercentage = ((coAuthorCount / totalPublications) * 100).toFixed(2);
-
-            // firstAuthorPercentage = ((firstAuthorCount / totalAuthorContributions) * 100).toFixed(2);
-            // secondAuthorPercentage = ((secondAuthorCount / totalAuthorContributions) * 100).toFixed(2);
-            // correspondingAuthorPercentage = ((correspondingAuthorCount / totalAuthorContributions) * 100).toFixed(2);
-            // coAuthorPercentage = ((coAuthorCount / totalAuthorContributions) * 100).toFixed(2);
-
-            // Initialize the Chart.js bar chart
-            // const ctx = document.getElementById('authorChart').getContext('2d');
-            // new Chart(ctx, {
-            //     type: 'bar',
-            //     data: {
-            //         labels: ['First Author', 'Second Author', 'Co-Author', 'Corresponding Author'],
-            //         datasets: [{
-            //             label: 'Author Contributions',
-            //             data: [firstAuthorCount, secondAuthorCount, coAuthorCount, correspondingAuthorCount],
-            //             backgroundColor: backgroundColor,
-            //             borderColor: borderColor,
-            //             borderWidth: 1
-            //         }]
-            //     },
-            //     options: {
-            //         responsive: true,
-            //         plugins: {
-            //             legend: {
-            //                 display: false  // Completely hide the legend
-            //             }
-            //         },
-            //         scales: {
-            //             x: {
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-            //                 }
-            //             },
-            //             y: {
-            //                 beginAtZero: true,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
-
-            const posTotalCitations = [
-                getPosTotalCitationsCumulative("first_author", plottingMinYear, plottingMaxYear),
-                getPosTotalCitationsCumulative("second_author", plottingMinYear, plottingMaxYear),
-                getPosTotalCitationsCumulative("co_author", plottingMinYear, plottingMaxYear),
-                getPosTotalCitationsCumulative("corresponding_author", plottingMinYear, plottingMaxYear)
-            ];
-
-            const qScoreCitations = [
-                getQScoreCitationsCumulative("Q1", plottingMinYear, plottingMaxYear),
-                getQScoreCitationsCumulative("Q2", plottingMinYear, plottingMaxYear),
-                getQScoreCitationsCumulative("Q3", plottingMinYear, plottingMaxYear),
-                getQScoreCitationsCumulative("Q4", plottingMinYear, plottingMaxYear),
-                getQScoreCitationsCumulative("NA", plottingMinYear, plottingMaxYear)
-            ];
-
-            // console.log(`qScoreCitations: ${qScoreCitations}`); //DEBUG
-            // console.log(`posTotalCitations: ${posTotalCitations}`)
-
-            const authorCitationsChartData = {
-                // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
-                labels: ['First Author Citations\nTotal:' + posTotalCitations[0], 'Second Author Citations\nTotal:' + posTotalCitations[1], 'Co-Author Citations\nTotal:' + posTotalCitations[2], 'Corresponding Author Citations\nTotal:' + posTotalCitations[3]],
-                datasets: [
-                    // { label: 'Q1 Citations', data: getQScoreCitations("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                    // { label: 'Q2 Citations', data: getQScoreCitations("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                    // { label: 'Q3 Citations', data: getQScoreCitations("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                    // { label: 'Q4 Citations', data: getQScoreCitations("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                    // { label: 'NA Citations', data: getQScoreCitations("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                    { label: 'Q1 Citations', data: qScoreCitations[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                    { label: 'Q2 Citations', data: qScoreCitations[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                    { label: 'Q3 Citations', data: qScoreCitations[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                    { label: 'Q4 Citations', data: qScoreCitations[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                    { label: 'NA Citations', data: qScoreCitations[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                ]
-            };
-
-            let chartStatus = Chart.getChart("authorCitationsChart"); // <canvas> id
-            if (chartStatus != undefined) {
-                // chartStatus.clear();
-                // chartStatus.destroy();
-                chartStatus.data = authorCitationsChartData;
-                chartStatus.update();
-            } else {
-                const ctxCitations = document.getElementById('authorCitationsChart').getContext('2d');
-                new Chart(ctxCitations, {
-                    type: 'bar',
-                    data: authorCitationsChartData,
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                display: false  // Completely hide the legend
-                            },
-                            title: {
-                                display: true,
-                                text: 'Citation Count based on Authorship with Journal Rank Categorization'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            },
-                            y: {
-                                stacked: true,
-                                beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            const citationDistributions = getCitationDistributionCumulative(plottingMinYear, plottingMaxYear);
-
-            const authorCitationsDistChartData = {
-                labels: ['First Author Citations', 'Second Author Citations', 'Co-Author Citations', 'Corresponding Author Citations'],
-                datasets: [{
-                    label: 'Citation Distribution',
-                    // data: [author_pos_cite_map.get("first_author"), author_pos_cite_map.get("second_author"), author_pos_cite_map.get("co_author"), author_pos_cite_map.get("corresponding_author")],
-                    data: [citationDistributions[0], citationDistributions[1], citationDistributions[2], citationDistributions[3]],
-                    backgroundColor: backgroundColor,
-                    borderColor: borderColor,
-                    borderWidth: 1
-                }]
-            };
-
-            chartStatus = Chart.getChart("authorCitationsDistChart"); // <canvas> id
-            if (chartStatus != undefined) {
-                // chartStatus.clear();
-                // chartStatus.destroy();
-                chartStatus.data = authorCitationsDistChartData;
-                chartStatus.update();
-            } else {
-                const ctxRatio = document.getElementById('authorCitationsDistChart').getContext('2d');
-                new Chart(ctxRatio, {
-                    // type: 'boxplot',
-                    type: 'violin',
-                    data: authorCitationsDistChartData,
-                    options: {
-                        responsive: true,
-                        whiskersMode: 'exact',
-                        coef: 0,
-                        plugins: {
-                            legend: {
-                                display: false  // Completely hide the legend
-                            },
-                            title: {
-                                display: true,
-                                text: 'Citation Distribution based on Authorship (Log Scale)'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            },
-                            y: {
-                                type: 'logarithmic',
-                                beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
+            const plottingMaxYear = selectedPeryearCheck ? selectedSingleYear : selectedMaxYear;        
             const posTotals = getPosTotalCumulative(plottingMinYear, plottingMaxYear);
 
-            //If you want it to add upto 100 then use this
-            const totalAuthorContributions = posTotals[0] + posTotals[1] + posTotals[2] + posTotals[3];
+                //If you want it to add upto 100 then use this
+                const totalAuthorContributions = posTotals[0] + posTotals[1] + posTotals[2] + posTotals[3];
 
-            // firstAuthorPercentage = ((firstAuthorCount / totalPublications) * 100).toFixed(2);
-            // secondAuthorPercentage = ((secondAuthorCount / totalPublications) * 100).toFixed(2);
-            // correspondingAuthorPercentage = ((correspondingAuthorCount / totalPublications) * 100).toFixed(2);
-            // coAuthorPercentage = ((coAuthorCount / totalPublications) * 100).toFixed(2);
+                // firstAuthorPercentage = ((firstAuthorCount / totalPublications) * 100).toFixed(2);
+                // secondAuthorPercentage = ((secondAuthorCount / totalPublications) * 100).toFixed(2);
+                // correspondingAuthorPercentage = ((correspondingAuthorCount / totalPublications) * 100).toFixed(2);
+                // coAuthorPercentage = ((coAuthorCount / totalPublications) * 100).toFixed(2);
 
-            const firstAuthorPercentage = ((posTotals[0] / totalAuthorContributions) * 100).toFixed(2);
-            const secondAuthorPercentage = ((posTotals[1] / totalAuthorContributions) * 100).toFixed(2);
-            const correspondingAuthorPercentage = ((posTotals[3] / totalAuthorContributions) * 100).toFixed(2);
-            const coAuthorPercentage = ((posTotals[2] / totalAuthorContributions) * 100).toFixed(2);
+                const firstAuthorPercentage = ((posTotals[0] / totalAuthorContributions) * 100).toFixed(2);
+                const secondAuthorPercentage = ((posTotals[1] / totalAuthorContributions) * 100).toFixed(2);
+                const correspondingAuthorPercentage = ((posTotals[3] / totalAuthorContributions) * 100).toFixed(2);
+                const coAuthorPercentage = ((posTotals[2] / totalAuthorContributions) * 100).toFixed(2);
 
-            const authorStackedChartData = {
-                // labels: ['Author Contribution %'],
-                labels: [''],
-                datasets: [{
-                    label: 'First Author Contribution %',
-                    data: [firstAuthorPercentage], // Make sure it's one value per dataset
-                    backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
-                    borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Second Author Contribution %',
-                    data: [secondAuthorPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
-                    borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Co-Author Contribution %',
-                    data: [coAuthorPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
-                    borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Corresponding Author Contribution %',
-                    data: [correspondingAuthorPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
-                    borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            };
+                const authorStackedChartData = {
+                    // labels: ['Author Contribution %'],
+                    labels: [''],
+                    datasets: [{
+                        label: 'First Author Contribution %',
+                        data: [firstAuthorPercentage], // Make sure it's one value per dataset
+                        backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
+                        borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Second Author Contribution %',
+                        data: [secondAuthorPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
+                        borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Co-Author Contribution %',
+                        data: [coAuthorPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
+                        borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Corresponding Author Contribution %',
+                        data: [correspondingAuthorPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
+                        borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                };
 
-            chartStatus = Chart.getChart("authorStackedChart"); // <canvas> id
-            if (chartStatus != undefined) {
-                // chartStatus.clear();
-                // chartStatus.destroy();
-                // const ctxStackedChart = document.getElementById('authorStackedChart');
-                // ctxStackedChart.height = 150;
-                const ctxStackedChart = document.getElementById('authorStackedChartDiv');
-                ctxStackedChart.style.height = "150px";
-                chartStatus.data = authorStackedChartData;
-                chartStatus.update();
-            } else {
-                // const ctxStackedChart = document.getElementById('authorStackedChart');
-                // ctxStackedChart.height = 150;
-                const ctxStackedChart = document.getElementById('authorStackedChartDiv');
-                ctxStackedChart.style.height = "150px";
-                const ctxStacked = document.getElementById('authorStackedChart').getContext('2d');
-                new Chart(ctxStacked, {
-                    type: 'bar',
-                    data: authorStackedChartData,
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,  // Make the chart responsive to container size
-                        maintainAspectRatio: false,  // Allow the chart to change size freely
-                        plugins: {
-                            legend: {
-                                display: false  // Completely hide the legend
-                            },
-                            title: {
-                                display: true,
-                                text: 'Author Contribution in % based on Authorship'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                beginAtZero: true,
-                                max: 100,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                chartStatus = Chart.getChart("authorStackedChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                    // chartStatus.clear();
+                    // chartStatus.destroy();
+                    // const ctxStackedChart = document.getElementById('authorStackedChart');
+                    // ctxStackedChart.height = 150;
+                    const ctxStackedChart = document.getElementById('authorStackedChartDiv');
+                    ctxStackedChart.style.height = "150px";
+                    chartStatus.data = authorStackedChartData;
+                    chartStatus.update();
+                } else {
+                    // const ctxStackedChart = document.getElementById('authorStackedChart');
+                    // ctxStackedChart.height = 150;
+                    const ctxStackedChart = document.getElementById('authorStackedChartDiv');
+                    ctxStackedChart.style.height = "150px";
+                    const ctxStacked = document.getElementById('authorStackedChart').getContext('2d');
+                    new Chart(ctxStacked, {
+                        type: 'bar',
+                        data: authorStackedChartData,
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,  // Make the chart responsive to container size
+                            maintainAspectRatio: false,  // Allow the chart to change size freely
+                            plugins: {
+                                legend: {
+                                    display: false  // Completely hide the legend
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Author Contribution in % based on Authorship'
                                 }
                             },
-                            y: {
-                                stacked: true,
-                                beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            const citationsTotals = getCitationsTotalCumulative(plottingMinYear, plottingMaxYear);
-
-            const totalAuthorCitations = citationsTotals[0] + citationsTotals[1] + citationsTotals[2] + citationsTotals[3];
-
-
-            const firstAuthorCitationsPercentage = ((citationsTotals[0] / totalAuthorCitations) * 100).toFixed(2);
-            const secondAuthorCitationsPercentage = ((citationsTotals[1] / totalAuthorCitations) * 100).toFixed(2);
-            const correspondingAuthorCitationsPercentage = ((citationsTotals[3] / totalAuthorCitations) * 100).toFixed(2);
-            const coAuthorCitationsPercentage = ((citationsTotals[2] / totalAuthorCitations) * 100).toFixed(2);
-
-            const citationsStackedChartData = {
-                // labels: ['Citation Contribution %'],
-                labels: [''],
-                datasets: [{
-                    label: 'First Author Citations %',
-                    data: [firstAuthorCitationsPercentage], // Make sure it's one value per dataset
-                    backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
-                    borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Second Author Citations %',
-                    data: [secondAuthorCitationsPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
-                    borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Co-Author Citations %',
-                    data: [coAuthorCitationsPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
-                    borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Corresponding Author Citations %',
-                    data: [correspondingAuthorCitationsPercentage], // One value per dataset
-                    backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
-                    borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            };
-
-            chartStatus = Chart.getChart("citationsStackedChart"); // <canvas> id
-            if (chartStatus != undefined) {
-                // chartStatus.clear();
-                // chartStatus.destroy();
-                // const ctxCitationsStackedChart = document.getElementById('citationsStackedChart');
-                // ctxCitationsStackedChart.height = 150;
-                const ctxCitationsStackedChart = document.getElementById('citationsStackedChartDiv');
-                ctxCitationsStackedChart.style.height = "150px";
-                chartStatus.data = citationsStackedChartData;
-                chartStatus.update();
-            } else {
-                // const ctxCitationsStackedChart = document.getElementById('citationsStackedChart');
-                // ctxCitationsStackedChart.height = 150;
-                const ctxCitationsStackedChart = document.getElementById('citationsStackedChartDiv');
-                ctxCitationsStackedChart.style.height = "150px";
-                const ctxCitationsStacked = document.getElementById('citationsStackedChart').getContext('2d');
-                new Chart(ctxCitationsStacked, {
-                    type: 'bar',
-                    data: citationsStackedChartData,
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,  // Make the chart responsive to container size
-                        maintainAspectRatio: false,  // Allow the chart to change size freely
-                        plugins: {
-                            legend: {
-                                display: false  // Completely hide the legend
-                            },
-                            title: {
-                                display: true,
-                                text: 'Citation Contribution in % based on Authorship'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                beginAtZero: true,
-                                max: 100,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
-                                }
-                            },
-                            y: {
-                                stacked: true,
-                                beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
                                 }
                             }
                         }
-                    }
-                });
-            }
+                    });
+                }
 
-            // const ctxQScorePos = document.getElementById('qScorePosChart').getContext('2d');
-            // new Chart(ctxQScorePos, {
-            //     type: 'bar',
-            //     data: {
-            //         labels: ['First Author Q*', 'Second Author Q*', 'Co-Author Q*', 'Corresponding Author Q*'],
-            //         // labels: ["Q1", "Q2", "Q3", "Q4", "NA"],
-            //         datasets: [
-            //             { label: 'Q1 Score By Position', data: getPosQScores("Q1"), backgroundColor: backgroundColor[0], borderColor: borderColor[0], borderWidth: 1 },
-            //             { label: 'Q2 Score By Position', data: getPosQScores("Q2"), backgroundColor: backgroundColor[1], borderColor: borderColor[1], borderWidth: 1 },
-            //             { label: 'Q3 Score By Position', data: getPosQScores("Q3"), backgroundColor: backgroundColor[2], borderColor: borderColor[2], borderWidth: 1 },
-            //             { label: 'Q4 Score By Position', data: getPosQScores("Q4"), backgroundColor: backgroundColor[3], borderColor: borderColor[3], borderWidth: 1 },
-            //             { label: 'NA Score By Position', data: getPosQScores("NA"), backgroundColor: "rgba(0,0,0,0.4)", borderColor: "rgba(0,0,0,1)", borderWidth: 1 }
-            //         ]
-            //     },
-            //     options: {
-            //         responsive: true,
-            //         plugins: {
-            //             legend: {
-            //                 display: true
-            //             }
-            //         },
-            //         scales: {
-            //             x: {
-            //                 stacked: false,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             },
-            //             y: {
-            //                 beginAtZero: true,
-            //                 stacked: false,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
+                const citationsTotals = getCitationsTotalCumulative(plottingMinYear, plottingMaxYear);
 
-            // const ctxQScore = document.getElementById('qScoreChart').getContext('2d');
-            // new Chart(ctxQScore, {
-            //     type: 'bar',
-            //     data: {
-            //         labels: ["Q1", "Q2", "Q3", "Q4", "NA"],
-            //         datasets: [
-            //             { label: 'First Author Q*', data: getQScores("first_author"), backgroundColor: backgroundColor[0], borderColor: borderColor[0], borderWidth: 1 },
-            //             { label: 'Second Author Q*', data: getQScores("second_author"), backgroundColor: backgroundColor[1], borderColor: borderColor[1], borderWidth: 1 },
-            //             { label: 'Co-Author Q*', data: getQScores("co_author"), backgroundColor: backgroundColor[2], borderColor: borderColor[2], borderWidth: 1 },
-            //             { label: 'Corresponding-Author Q*', data: getQScores("corresponding_author"), backgroundColor: backgroundColor[3], borderColor: borderColor[3], borderWidth: 1 }
-            //         ]
-            //     },
-            //     options: {
-            //         responsive: true,
-            //         plugins: {
-            //             legend: {
-            //                 display: true
-            //             }
-            //         },
-            //         scales: {
-            //             x: {
-            //                 stacked: false,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             },
-            //             y: {
-            //                 beginAtZero: true,
-            //                 stacked: false,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
+                const totalAuthorCitations = citationsTotals[0] + citationsTotals[1] + citationsTotals[2] + citationsTotals[3];
 
-            const posQScoresTotals = [
-                getTotalQScoresCumulative("first_author", plottingMinYear, plottingMaxYear),
-                getTotalQScoresCumulative("second_author", plottingMinYear, plottingMaxYear),
-                getTotalQScoresCumulative("co_author", plottingMinYear, plottingMaxYear),
-                getTotalQScoresCumulative("corresponding_author", plottingMinYear, plottingMaxYear)
-            ];
 
-            const posQScores = [
-                getPosQScoresCumulative("Q1", plottingMinYear, plottingMaxYear),
-                getPosQScoresCumulative("Q2", plottingMinYear, plottingMaxYear),
-                getPosQScoresCumulative("Q3", plottingMinYear, plottingMaxYear),
-                getPosQScoresCumulative("Q4", plottingMinYear, plottingMaxYear),
-                getPosQScoresCumulative("NA", plottingMinYear, plottingMaxYear)
-            ];
+                const firstAuthorCitationsPercentage = ((citationsTotals[0] / totalAuthorCitations) * 100).toFixed(2);
+                const secondAuthorCitationsPercentage = ((citationsTotals[1] / totalAuthorCitations) * 100).toFixed(2);
+                const correspondingAuthorCitationsPercentage = ((citationsTotals[3] / totalAuthorCitations) * 100).toFixed(2);
+                const coAuthorCitationsPercentage = ((citationsTotals[2] / totalAuthorCitations) * 100).toFixed(2);
 
-            // console.log(posQScoresTotals); //DEBUG
-            // console.log(posQScores); //DEBUG
+                const citationsStackedChartData = {
+                    // labels: ['Citation Contribution %'],
+                    labels: [''],
+                    datasets: [{
+                        label: 'First Author Citations %',
+                        data: [firstAuthorCitationsPercentage], // Make sure it's one value per dataset
+                        backgroundColor: backgroundColor[0], //'rgba(75, 192, 192, 0.2)',
+                        borderColor: borderColor[0], //'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Second Author Citations %',
+                        data: [secondAuthorCitationsPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[1], //'rgba(153, 102, 255, 0.2)',
+                        borderColor: borderColor[1], //'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Co-Author Citations %',
+                        data: [coAuthorCitationsPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[2], //'rgba(255, 159, 64, 0.2)',
+                        borderColor: borderColor[2], //'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Corresponding Author Citations %',
+                        data: [correspondingAuthorCitationsPercentage], // One value per dataset
+                        backgroundColor: backgroundColor[3], //'rgba(54, 162, 235, 0.2)',
+                        borderColor: borderColor[3], //'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                };
 
-            const qScorePosStackedChartData = {
-                // labels: ['First Author Q*\nTotal:' + getTotalQScores("first_author"), 'Second Author Q*\nTotal:' + getTotalQScores("second_author"), 'Co-Author Q*\nTotal:' + getTotalQScores("co_author"), 'Corresponding Author Q*\nTotal:' + getTotalQScores("corresponding_author")],
-                labels: ['First Author Q*\nTotal:' + posQScoresTotals[0], 'Second Author Q*\nTotal:' + posQScoresTotals[1], 'Co-Author Q*\nTotal:' + posQScoresTotals[2], 'Corresponding Author Q*\nTotal:' + posQScoresTotals[3]],
-                datasets: [
-                    // { label: "Q1", data: getPosQScores("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                    // { label: "Q2", data: getPosQScores("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                    // { label: "Q3", data: getPosQScores("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                    // { label: "Q4", data: getPosQScores("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                    // { label: "NA", data: getPosQScores("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                    { label: "Q1", data: posQScores[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
-                    { label: "Q2", data: posQScores[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
-                    { label: "Q3", data: posQScores[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
-                    { label: "Q4", data: posQScores[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
-                    { label: "NA", data: posQScores[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
-                ]
-            };
-
-            chartStatus = Chart.getChart("qScorePosStackedChart"); // <canvas> id
-            if (chartStatus != undefined) {
-                // chartStatus.clear();
-                // chartStatus.destroy();
-                chartStatus.data = qScorePosStackedChartData;
-                chartStatus.update();
-            } else {
-                const ctxQScorePosStacked = document.getElementById('qScorePosStackedChart').getContext('2d');
-                new Chart(ctxQScorePosStacked, {
-                    type: 'bar',
-                    data: qScorePosStackedChartData,
-                    options: {
-                        indexAxis: 'x',
-                        // responsive: true,  // Make the chart responsive to container size
-                        // maintainAspectRatio: false,  // Allow the chart to change size freely
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            title: {
-                                display: true,
-                                text: 'Publication Count based on Authorship with Journal Rank Categorization'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
+                chartStatus = Chart.getChart("citationsStackedChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                    // chartStatus.clear();
+                    // chartStatus.destroy();
+                    // const ctxCitationsStackedChart = document.getElementById('citationsStackedChart');
+                    // ctxCitationsStackedChart.height = 150;
+                    const ctxCitationsStackedChart = document.getElementById('citationsStackedChartDiv');
+                    ctxCitationsStackedChart.style.height = "150px";
+                    chartStatus.data = citationsStackedChartData;
+                    chartStatus.update();
+                } else {
+                    // const ctxCitationsStackedChart = document.getElementById('citationsStackedChart');
+                    // ctxCitationsStackedChart.height = 150;
+                    const ctxCitationsStackedChart = document.getElementById('citationsStackedChartDiv');
+                    ctxCitationsStackedChart.style.height = "150px";
+                    const ctxCitationsStacked = document.getElementById('citationsStackedChart').getContext('2d');
+                    new Chart(ctxCitationsStacked, {
+                        type: 'bar',
+                        data: citationsStackedChartData,
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,  // Make the chart responsive to container size
+                            maintainAspectRatio: false,  // Allow the chart to change size freely
+                            plugins: {
+                                legend: {
+                                    display: false  // Completely hide the legend
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Citation Contribution in % based on Authorship'
                                 }
                             },
-                            y: {
-                                beginAtZero: true,
-                                stacked: true,
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
                                 }
                             }
                         }
-                    }
-                });
+                    });
+                }
+            
+            if (isDesktop) {
+    
+                const posTotalCitations = [
+                    getPosTotalCitationsCumulative("first_author", plottingMinYear, plottingMaxYear),
+                    getPosTotalCitationsCumulative("second_author", plottingMinYear, plottingMaxYear),
+                    getPosTotalCitationsCumulative("co_author", plottingMinYear, plottingMaxYear),
+                    getPosTotalCitationsCumulative("corresponding_author", plottingMinYear, plottingMaxYear)
+                ];
+
+                const qScoreCitations = [
+                    getQScoreCitationsCumulative("Q1", plottingMinYear, plottingMaxYear),
+                    getQScoreCitationsCumulative("Q2", plottingMinYear, plottingMaxYear),
+                    getQScoreCitationsCumulative("Q3", plottingMinYear, plottingMaxYear),
+                    getQScoreCitationsCumulative("Q4", plottingMinYear, plottingMaxYear),
+                    getQScoreCitationsCumulative("NA", plottingMinYear, plottingMaxYear)
+                ];
+
+                const authorCitationsChartData = {
+                    // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
+                    labels: ['First Author Citations\nTotal:' + posTotalCitations[0], 'Second Author Citations\nTotal:' + posTotalCitations[1], 'Co-Author Citations\nTotal:' + posTotalCitations[2], 'Corresponding Author Citations\nTotal:' + posTotalCitations[3]],
+                    datasets: [
+                        // { label: 'Q1 Citations', data: getQScoreCitations("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                        // { label: 'Q2 Citations', data: getQScoreCitations("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                        // { label: 'Q3 Citations', data: getQScoreCitations("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                        // { label: 'Q4 Citations', data: getQScoreCitations("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                        // { label: 'NA Citations', data: getQScoreCitations("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                        { label: 'Q1 Citations', data: qScoreCitations[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                        { label: 'Q2 Citations', data: qScoreCitations[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                        { label: 'Q3 Citations', data: qScoreCitations[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                        { label: 'Q4 Citations', data: qScoreCitations[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                        { label: 'NA Citations', data: qScoreCitations[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                    ]
+                };
+
+                let chartStatus = Chart.getChart("authorCitationsChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                    // chartStatus.clear();
+                    // chartStatus.destroy();
+                    chartStatus.data = authorCitationsChartData;
+                    chartStatus.update();
+                } else {
+                    const ctxCitations = document.getElementById('authorCitationsChart').getContext('2d');
+                    new Chart(ctxCitations, {
+                        type: 'bar',
+                        data: authorCitationsChartData,
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    display: false  // Completely hide the legend
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Citation Count based on Authorship with Journal Rank Categorization'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const citationDistributions = getCitationDistributionCumulative(plottingMinYear, plottingMaxYear);
+
+                const authorCitationsDistChartData = {
+                    labels: ['First Author Citations', 'Second Author Citations', 'Co-Author Citations', 'Corresponding Author Citations'],
+                    datasets: [{
+                        label: 'Citation Distribution',
+                        // data: [author_pos_cite_map.get("first_author"), author_pos_cite_map.get("second_author"), author_pos_cite_map.get("co_author"), author_pos_cite_map.get("corresponding_author")],
+                        data: [citationDistributions[0], citationDistributions[1], citationDistributions[2], citationDistributions[3]],
+                        backgroundColor: backgroundColor,
+                        borderColor: borderColor,
+                        borderWidth: 1
+                    }]
+                };
+
+                chartStatus = Chart.getChart("authorCitationsDistChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                    // chartStatus.clear();
+                    // chartStatus.destroy();
+                    chartStatus.data = authorCitationsDistChartData;
+                    chartStatus.update();
+                } else {
+                    const ctxRatio = document.getElementById('authorCitationsDistChart').getContext('2d');
+                    new Chart(ctxRatio, {
+                        // type: 'boxplot',
+                        type: 'violin',
+                        data: authorCitationsDistChartData,
+                        options: {
+                            responsive: true,
+                            whiskersMode: 'exact',
+                            coef: 0,
+                            plugins: {
+                                legend: {
+                                    display: false  // Completely hide the legend
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Citation Distribution based on Authorship (Log Scale)'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                },
+                                y: {
+                                    type: 'logarithmic',
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Set the transparency of the x-axis gridlines
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const posQScoresTotals = [
+                    getTotalQScoresCumulative("first_author", plottingMinYear, plottingMaxYear),
+                    getTotalQScoresCumulative("second_author", plottingMinYear, plottingMaxYear),
+                    getTotalQScoresCumulative("co_author", plottingMinYear, plottingMaxYear),
+                    getTotalQScoresCumulative("corresponding_author", plottingMinYear, plottingMaxYear)
+                ];
+
+                const posQScores = [
+                    getPosQScoresCumulative("Q1", plottingMinYear, plottingMaxYear),
+                    getPosQScoresCumulative("Q2", plottingMinYear, plottingMaxYear),
+                    getPosQScoresCumulative("Q3", plottingMinYear, plottingMaxYear),
+                    getPosQScoresCumulative("Q4", plottingMinYear, plottingMaxYear),
+                    getPosQScoresCumulative("NA", plottingMinYear, plottingMaxYear)
+                ];
+
+                // console.log(posQScoresTotals); //DEBUG
+                // console.log(posQScores); //DEBUG
+
+                const qScorePosStackedChartData = {
+                    // labels: ['First Author Q*\nTotal:' + getTotalQScores("first_author"), 'Second Author Q*\nTotal:' + getTotalQScores("second_author"), 'Co-Author Q*\nTotal:' + getTotalQScores("co_author"), 'Corresponding Author Q*\nTotal:' + getTotalQScores("corresponding_author")],
+                    labels: ['First Author Q*\nTotal:' + posQScoresTotals[0], 'Second Author Q*\nTotal:' + posQScoresTotals[1], 'Co-Author Q*\nTotal:' + posQScoresTotals[2], 'Corresponding Author Q*\nTotal:' + posQScoresTotals[3]],
+                    datasets: [
+                        // { label: "Q1", data: getPosQScores("Q1"), backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                        // { label: "Q2", data: getPosQScores("Q2"), backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                        // { label: "Q3", data: getPosQScores("Q3"), backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                        // { label: "Q4", data: getPosQScores("Q4"), backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                        // { label: "NA", data: getPosQScores("NA"), backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                        { label: "Q1", data: posQScores[0], backgroundColor: QbackgroundColor[0], borderColor: QborderColor[0], borderWidth: 1 },
+                        { label: "Q2", data: posQScores[1], backgroundColor: QbackgroundColor[1], borderColor: QborderColor[1], borderWidth: 1 },
+                        { label: "Q3", data: posQScores[2], backgroundColor: QbackgroundColor[2], borderColor: QborderColor[2], borderWidth: 1 },
+                        { label: "Q4", data: posQScores[3], backgroundColor: QbackgroundColor[3], borderColor: QborderColor[3], borderWidth: 1 },
+                        { label: "NA", data: posQScores[4], backgroundColor: QbackgroundColor[4], borderColor: QborderColor[4], borderWidth: 1 }
+                    ]
+                };
+
+                chartStatus = Chart.getChart("qScorePosStackedChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                    // chartStatus.clear();
+                    // chartStatus.destroy();
+                    chartStatus.data = qScorePosStackedChartData;
+                    chartStatus.update();
+                } else {
+                    const ctxQScorePosStacked = document.getElementById('qScorePosStackedChart').getContext('2d');
+                    new Chart(ctxQScorePosStacked, {
+                        type: 'bar',
+                        data: qScorePosStackedChartData,
+                        options: {
+                            indexAxis: 'x',
+                            // responsive: true,  // Make the chart responsive to container size
+                            // maintainAspectRatio: false,  // Allow the chart to change size freely
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Publication Count based on Authorship with Journal Rank Categorization'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    stacked: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
+                const singleRangeInput = document.getElementById("single_range");
+                // singleRangeInput.min = minYear;
+                // singleRangeInput.max = maxYear;
+                singleRangeInput.value = selectedSingleYear.toString();
+
+                // doubleRangeInputs[0].min = minYear;
+                // doubleRangeInputs[0].max = maxYear;
+                doubleRangeInputs[0].value = selectedMinYear.toString();
+                // doubleRangeInputs[1].min = minYear;
+                // doubleRangeInputs[1].max = maxYear;
+                doubleRangeInputs[1].value = selectedMaxYear.toString();
+
+                // console.log("before update: ", selectedMinYear , selectedMaxYear);
+
+                updateSingleRange(selectedSingleYear);
+                updateDoubleRangeMin(selectedMinYear);
+                updateDoubleRangeMax(selectedMaxYear);
+
+                peryearChecker();
+                cumulativeChecker();
+
+                selectedMinYear = parseInt(doubleRangeInputs[0].value);
+                selectedMaxYear = parseInt(doubleRangeInputs[1].value);
+                selectedSingleYear = parseInt(singleRangeInput.value);
+            } else {
+                document.getElementById("year_plot").style.display = "none";
+                document.getElementById("rangeSliderDiv").style.display = "none";
+                document.getElementById("authorCitationsDistChart").style.display = "none";
+                document.getElementById("authorCitationsChart").style.display = "none";
+                document.getElementById("qScorePosStackedChart").style.display = "none";
             }
+                const totalPubsElement = document.getElementById("total_pubs");
+                const ignoredPubsElement = document.getElementById("ignored_pubs");
+                const consideredPubsElement = document.getElementById("considered_pubs");
+                const consideredAuthorNamesElement = document.getElementById("using_author_names");
 
-            //OLD PLOT but keep it for now
-            // const ctxQScorePosStacked = document.getElementById('qScorePosStackedChart').getContext('2d');
-            // new Chart(ctxQScorePosStacked, {
-            //     type: 'bar',
-            //     data: {
-            //         labels: ['First Author Q* %', 'Second Author Q* %', 'Co-Author Q* %', 'Corresponding Author Q* %'],
-            //         datasets: [
-            //             { label: 'Q1 % By Position', data: getPosQScorePercentages("Q1"), backgroundColor: backgroundColor[0], borderColor: borderColor[0], borderWidth: 1 },
-            //             { label: 'Q2 % By Position', data: getPosQScorePercentages("Q2"), backgroundColor: backgroundColor[1], borderColor: borderColor[1], borderWidth: 1 },
-            //             { label: 'Q3 % By Position', data: getPosQScorePercentages("Q3"), backgroundColor: backgroundColor[2], borderColor: borderColor[2], borderWidth: 1 },
-            //             { label: 'Q4 % By Position', data: getPosQScorePercentages("Q4"), backgroundColor: backgroundColor[3], borderColor: borderColor[3], borderWidth: 1 },
-            //             { label: 'NA % By Position', data: getPosQScorePercentages("NA"), backgroundColor: "rgba(0,0,0,0.4)", borderColor: "rgba(0,0,0,1)", borderWidth: 1 }
-            //         ]
-            //     },
-            //     options: {
-            //         indexAxis: 'y',
-            //         responsive: true,  // Make the chart responsive to container size
-            //         maintainAspectRatio: false,  // Allow the chart to change size freely
-            //         plugins: {
-            //             legend: {
-            //                 display: false
-            //             }
-            //         },
-            //         scales: {
-            //             x: {
-            //                 stacked: true,
-            //                 max: 100,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             },
-            //             y: {
-            //                 beginAtZero: true,
-            //                 stacked: true,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
+                totalPubsElement.textContent = DOMPurify.sanitize(`${totalPublications.toString()}`);
+                consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match)}`);
+                ignoredPubsElement.textContent = DOMPurify.sanitize(`${pub_author_no_match}`);
+                consideredAuthorNamesElement.textContent = DOMPurify.sanitize(`${authorNamesConsidered.toString()}`);
 
-            // const ctxQScoreStacked = document.getElementById('qScoreStackedChart').getContext('2d');
-            // new Chart(ctxQScoreStacked, {
-            //     type: 'bar',
-            //     data: {
-            //         labels: ['Q1 %', 'Q2 %', 'Q3 %', 'Q4 %', 'NA %'],
-            //         datasets: [
-            //             { label: 'First Author Q* %', data: getQScorePercentages("first_author"), backgroundColor: backgroundColor[0], borderColor: borderColor[0], borderWidth: 1 },
-            //             { label: 'Second Author Q* %', data: getQScorePercentages("second_author"), backgroundColor: backgroundColor[1], borderColor: borderColor[1], borderWidth: 1 },
-            //             { label: 'Co-Author Q* %', data: getQScorePercentages("co_author"), backgroundColor: backgroundColor[2], borderColor: borderColor[2], borderWidth: 1 },
-            //             { label: 'Corresponding-Author Q* %', data: getQScorePercentages("corresponding_author"), backgroundColor: backgroundColor[3], borderColor: borderColor[3], borderWidth: 1 }
-            //         ]
-            //     },
-            //     options: {
-            //         plugins: {
-            //             legend: {
-            //                 display: false
-            //             }
-            //         },
-            //         indexAxis: 'y',
-            //         responsive: true,  // Make the chart responsive to container size
-            //         maintainAspectRatio: false,  // Allow the chart to change size freely
-            //         scales: {
-            //             x: {
-            //                 stacked: true,
-            //                 max: 100,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             },
-            //             y: {
-            //                 beginAtZero: true,
-            //                 stacked: true,
-            //                 grid: {
-            //                     color: 'rgba(0, 0, 0, 0.05)' // Transparent gridlines
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
-
-            // const cumulativeCheck = document.getElementById("cumulative_checkbox");
-            // const cumulativeCheckLabel = document.querySelector('label[for="cumulative_checkbox"]');
-            // const singleRangeTrack = document.getElementById("single_range_track");
-            // const peryearCheck = document.getElementById("peryear_checkbox");
-            // const singleSlider = document.getElementById("single_range_slider");
-            // const doubleSlider = document.getElementById("double_range_slider");
-
-            const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
-            const singleRangeInput = document.getElementById("single_range");
-            // singleRangeInput.min = minYear;
-            // singleRangeInput.max = maxYear;
-            singleRangeInput.value = selectedSingleYear.toString();
-
-            // doubleRangeInputs[0].min = minYear;
-            // doubleRangeInputs[0].max = maxYear;
-            doubleRangeInputs[0].value = selectedMinYear.toString();
-            // doubleRangeInputs[1].min = minYear;
-            // doubleRangeInputs[1].max = maxYear;
-            doubleRangeInputs[1].value = selectedMaxYear.toString();
-
-            // console.log("before update: ", selectedMinYear , selectedMaxYear);
-
-            updateSingleRange(selectedSingleYear);
-            updateDoubleRangeMin(selectedMinYear);
-            updateDoubleRangeMax(selectedMaxYear);
-
-            peryearChecker();
-            cumulativeChecker();
-
-            selectedMinYear = parseInt(doubleRangeInputs[0].value);
-            selectedMaxYear = parseInt(doubleRangeInputs[1].value);
-            selectedSingleYear = parseInt(singleRangeInput.value);
-
-            // if (peryearCheck.checked) {
-            //     singleSlider.style.display = "flex";
-            //     doubleSlider.style.display = "none";
-            //     cumulativeCheckbox.style.display = "inline-block";
-            //     cumulativeCheckboxLabel.style.display = "inline-block";
-            // } else {
-            //     singleSlider.style.display = "none";
-            //     doubleSlider.style.display = "flex";
-            //     cumulativeCheckbox.style.display = "none";
-            //     cumulativeCheckboxLabel.style.display = "none";
-            // }
-
-            // if(cumulativeCheck.checked){
-            //     singleRangeTrack.style.display = "flex";
-            // }
-
-            const totalPubsElement = document.getElementById("total_pubs");
-            const ignoredPubsElement = document.getElementById("ignored_pubs");
-            const consideredPubsElement = document.getElementById("considered_pubs");
-            const consideredAuthorNamesElement = document.getElementById("using_author_names");
-
-            totalPubsElement.textContent = DOMPurify.sanitize(`${totalPublications.toString()}`);
-            consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match )}`);
-            ignoredPubsElement.textContent = DOMPurify.sanitize(`${pub_author_no_match }`);
-            consideredAuthorNamesElement.textContent = DOMPurify.sanitize(`${authorNamesConsidered.toString()}`);
-
-            // Enable the download button and display the chart container
-            downloadDetailsButton.disabled = false;
-            downloadPlotsButton.disabled = false;
-            chartMainContainer.style.display = "block";
+                // Enable the download button and display the chart container
+                downloadDetailsButton.disabled = false;
+                downloadPlotsButton.disabled = false;
+                chartMainContainer.style.display = "block";
+            
         }
 
         function draw10yearsChart() {
@@ -5605,8 +5366,8 @@ input::-moz-range-thumb {
             //     const chartPluginPath = chrome.runtime.getURL('libs/chartjs-plugin-annotation.min.js');
             //     loadScript(chartPluginPath, draw10yearsChart, "chartjs_plugin_script");
             // }
-
-            loadScript(chartPath, draw10yearsChart, "chartjs_script_decade");
+            if(isDesktop)
+                loadScript(chartPath, draw10yearsChart, "chartjs_script_decade");
             // loadScriptURL("https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js", draw10yearsChart, "chartjs_script_decade");
             loadScript(chartPath, updateAuthorChart, "chartjs_script_author");
             loadingBarContainer.style.display = "none";
