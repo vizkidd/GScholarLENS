@@ -97,45 +97,17 @@ async function loadScript(url, callback, id) {
 //   };
 // }
 
+(function () {
 
-//MOVED to init.js
-function releaseSemaphoreAndReload() {
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-      console.log(resp.status);
-      window.location.reload();
-    });
-}
-  
-function releaseSemaphore(){
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
-      });
-}
+    if(!window.location.href.includes("user=") || !window.location.href.includes("scholar.google")){
+        return;
+    }
 
-  window.addEventListener('error', event => {
-    console.error('Uncaught error:', event);
-    // releaseSemaphoreAndReload();
-      releaseSemaphore();
-  }, true);  // useCapture=true to catch as early as possible
-  
-  // 3) Catch unhandled promise rejections
-  window.addEventListener('unhandledrejection', event => {
-    console.error('Unhandled rejection:', event);
-    // releaseSemaphoreAndReload();
-    releaseSemaphore();
-  }, true);
-
-  window.addEventListener('beforeunload', () => { //unload
-        releaseSemaphore();
-    }, true); // useCapture=true to catch as early as possible
-
-
-//MOVED to init.js
-// This async function is like "main()" for each tab/content script.
-// It runs automatically to load the excel data from local storage and create the button.
-// It does a preliminary test for the presence of a CAPTCHA page.
-createButton();
-chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
+    // This async function is like "main()" for each tab/content script.
+    // It runs automatically to load the excel data from local storage and create the button.
+    // It does a preliminary test for the presence of a CAPTCHA page.
+    createButton();
+    chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
     console.log(response.status);
     (async function () {
         const currentTabURL = window.location.href.toString();
@@ -153,7 +125,43 @@ chrome.runtime.sendMessage({ type: 'wait_for_initialization' }, (response) => {
         // await new Promise(resolve => setTimeout(resolve, 2000));  // 2-second delay
         enableButton();
     })();
-});
+    });
+    
+})();
+
+function releaseSemaphoreAndReload() {
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+        window.location.reload();
+        });
+    }
+    
+    function releaseSemaphore(){
+        chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+            console.log(resp.status);
+        });
+    }
+
+    //FOR - DEBUGGING - DEBUG
+    // window.addEventListener('error', event => {
+    //     console.error('Uncaught error:', event);
+    //     // releaseSemaphoreAndReload();
+    //     releaseSemaphore();
+    // }, true);  // useCapture=true to catch as early as possible
+    
+    // // 3) Catch unhandled promise rejections
+    // window.addEventListener('unhandledrejection', event => {
+    //     console.error('Unhandled rejection:', event);
+    //     // releaseSemaphoreAndReload();
+    //     releaseSemaphore();
+    // }, true);
+
+    window.addEventListener('beforeunload', () => { //unload
+            releaseSemaphore();
+        }, true); // useCapture=true to catch as early as possible
+
+
+
 function enableButton() {
     const button = document.getElementById("inject-content-button");
     button.textContent = "Run GScholarLENS";
@@ -376,6 +384,11 @@ function createButton() {
         return;
     }
 
+    const profileSection = document.querySelector('#gsc_prf');
+    if (!profileSection) {
+        return;
+    }
+
     // Create a new button element
     const button = document.createElement("button");
     // button.id = "inject-content-button";
@@ -446,8 +459,6 @@ function createButton() {
     button.prepend(icon);
 
     // Add the button to the page
-    // const profileSection = document.querySelector('#gsc_prf_w');
-    const profileSection = document.querySelector('#gsc_prf');
     profileSection.append(button);
 
     // Add an event listener to the button to execute GScholarLENS.js when clicked
@@ -637,8 +648,8 @@ async function mergeYearwiseData(globalYearData, workerYearData) {
     }
 
    
-    console.log("Merging with:", workerYearData);
-    console.log("Merged yearwise data:", globalYearData);
+    // console.log("Merging with:", workerYearData);
+    // console.log("Merged yearwise data:", globalYearData);
   }  
 
 function startScraping() {
@@ -670,6 +681,7 @@ function startScraping() {
         const pubMachineThreshold = 48;
         const MAX_RETRIES = 5;
         const MAX_WORKERS = Math.max(1, navigator.hardwareConcurrency - 1);
+        const BATCH_SIZE = navigator.hardwareConcurrency + 1;
 
         let selectedPeryearCheck = false;
         let selectedCumulativeCheck = false;
@@ -2260,7 +2272,7 @@ input::-moz-range-thumb {
                 return [0, 0, 0, 0];
             }
 
-            console.log("scoreType:", yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").get(scoreType));//DEBUG
+            // console.log("scoreType:", yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").get(scoreType));//DEBUG
 
             return [
                 yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").get(scoreType),
@@ -2464,7 +2476,7 @@ input::-moz-range-thumb {
                     continue;
                 }
                 let qScores = getQScoreCitationsByYear(scoreType, year.toString());
-                console.log("qScores:",qScores, "scoreType:", scoreType, "year:", year); //DEBUG
+                // console.log("qScores:",qScores, "scoreType:", scoreType, "year:", year); //DEBUG
                 for (let i = 0; i < 4; i++) {
                     total[i] += qScores[i];
                 }
@@ -2479,7 +2491,7 @@ input::-moz-range-thumb {
                     continue;
                 }
                 let posCitations = getPosCitationsByYear(author_pos, year.toString());
-                console.log("posCitations:",posCitations); //DEBUG
+                // console.log("posCitations:",posCitations); //DEBUG
                 for (let i = 0; i < 5; i++) {
                     total[i] += posCitations[i];
                 }
@@ -2740,8 +2752,8 @@ input::-moz-range-thumb {
                 getQScoreCitationsCumulative("NA", plottingMinYear, plottingMaxYear)
             ];
 
-            console.log(`qScoreCitations: ${qScoreCitations}`); //DEBUG
-            console.log(`posTotalCitations: ${posTotalCitations}`)
+            // console.log(`qScoreCitations: ${qScoreCitations}`); //DEBUG
+            // console.log(`posTotalCitations: ${posTotalCitations}`)
 
             const authorCitationsChartData = {
                 // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
@@ -4164,34 +4176,24 @@ input::-moz-range-thumb {
                     w.idle = true;
                     pubWorkerPool.push(w);
                 }
-                // const taskQueue = publicationData.map((pub, idx) => ({ pub, idx }));
-                // scheduleTask(pubWorkerPool, taskQueue, callback, message)
                 //Initial scrape
                 // Process publication data and match authors
-                for (const [pub_idx, publication] of publicationData.entries()) {
-
-                    // if (publication.authors === "Pending") {
-                    //     // Process pending authors in the extended scrape step (next step)
-                    //     extended_scrape = true;
-                    //     continue;
-                    // }
-                   
-                    // if (pub_idx > retractionProgress) {
-                    //     //    console.log(retractedPubsIdxList.length); //DEBUG
-                    //     //wait until retraction check is complete for the specific publication
-                    //     await new Promise(resolve => setTimeout(resolve, 100));
-                    // }
-
-
-                    while (pub_idx > retractionProgress) {
+                // for (const [pub_idx, publication] of publicationData.entries()) {
+                // for(const publication_batch of batches(publicationData.map((p,i)=>({...p,idx:i})), BATCH_SIZE)){
+                for (let i = 0; i < publicationData.length; i += BATCH_SIZE) {
+                    const publication_batch = publicationData.slice(i, i + BATCH_SIZE).filter(
+                        pub => !retractedPubsIdxList.includes(pub.index)
+                    );
+                    const pub_idx = publication_batch.map(p=>p.index);
+                    while (pub_idx.some(p=> p > retractionProgress)) {
                         //    console.log(retractedPubsIdxList.length); //DEBUG
                         //wait until retraction check is complete for the specific publication
                         await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
                     }
 
-                    if (retractedPubsIdxList.includes(pub_idx)) {
-                        continue;
-                    }
+                    // if (retractedPubsIdxList.includes(pub_idx)) {
+                    //     continue;
+                    // }
                     
                     while(!pubWorkerPool.find(w => w.idle)){
                         await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
@@ -4287,7 +4289,7 @@ input::-moz-range-thumb {
                               break;
                           default:
                               //Author not found
-                              console.warn(data.publication.pub_idx, data.publication.author_pos); // DEBUG    
+                            //   console.warn("INITIAL: ",data); // DEBUG    
                               break;
                       }
                       tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
@@ -4304,7 +4306,7 @@ input::-moz-range-thumb {
                             //     new Map(innerEntries.entries().map(([key, value]) => new Map(value.entries().map(([k, v]) => [k, v]))))
                             //   ])
                             // );
-                            console.log("yearwiseData: ", data.yearwiseData); //DEBUG
+                            // console.log("yearwiseData: ", data.yearwiseData); //DEBUG
                             const workerYearData = rebuildYearwiseData(data.yearwiseData);
 
                             // console.log(workerYearData);
@@ -4332,7 +4334,7 @@ input::-moz-range-thumb {
                     //     // 2) Encode as UTF-8 bytes in a Uint8Array
                     //     const initBytes   = encoder.encode(initJson);            // Uint8Array
                     // const pubWorker = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
-                    pubWorker.postMessage({ task: 'initialScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                    pubWorker.postMessage({ task: 'initialScrape', batch: publication_batch, authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
                     // pubWorker.postMessage(initBytes.buffer, [initBytes.buffer]); // Send the ArrayBuffer to the worker
 
                     
@@ -4563,35 +4565,45 @@ input::-moz-range-thumb {
                     pub_titles.length = 0;
                     let authorIndexExt = 0;
 
+                    publicationData.forEach(async (publication, i) => {
+                            if (publication.authors === "Pending") {
+                                publication.authors = authorsListExt[authorIndexExt] || "Authors not found";
+                                authorIndexExt++;
+                            } else {
+                                // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                                return;
+                            }
+                    });
+
                     // console.log(authorsListExt); //DEBUG
 
-                    for (const [pub_idx, publication] of publicationData.entries()) {
+                    // for (const [pub_idx, publication] of publicationData.entries()) {
+                    // for(const publication_batch of batches(publicationData.map((p,i)=>({...p,idx:i})), BATCH_SIZE)){
+                    for (let i = 0; i < publicationData.length; i += BATCH_SIZE) {
+                        const publication_batch = publicationData.slice(i, i + BATCH_SIZE).filter(
+                            pub => !retractedPubsIdxList.includes(pub.index)
+                        ).filter(
+                            pub => !processedPubsIdx.has(pub.index)
+                        );
+                        const pub_idx = publication_batch.map(p=>p.index);
                         // Process all the authors which are pending. Pending authors require scraping of extended author information from the publication URL/page
                         // if (pub_idx > retractionProgress) {
-                        while (pub_idx > retractionProgress) {
+                        while (pub_idx.some(p=> p > retractionProgress)) {
                             // console.log(retractedPubsIdxList.length); //DEBUG
                             //wait until retraction check is complete for the specific publication
                             await new Promise(resolve => setTimeout(resolve, 100));
                             // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                         }
 
-                        if (retractedPubsIdxList.includes(pub_idx)) {
-                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                            continue;
-                        }
+                        // if (retractedPubsIdxList.includes(pub_idx)) {
+                        //     // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                        //     continue;
+                        // }
 
-                        if (publication.authors === "Pending") {
-                            publication.authors = authorsListExt[authorIndexExt] || "Authors not found";
-                            authorIndexExt++;
-                        } else {
-                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                            continue;
-                        }
-
-                        if (processedPubsIdx.has(pub_idx)) {
-                            // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                            continue;
-                        }
+                        // if (processedPubsIdx.has(pub_idx)) {
+                        //     // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
+                        //     continue;
+                        // }
 
                         while(!pubWorkerPool.find(w => w.idle)){
                             await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
@@ -4666,6 +4678,10 @@ input::-moz-range-thumb {
                                         adjustedCitationCount = data.publication.citations * hCiteProp[3];
                                         citationWeight = hCiteProp[3];
                                         break;
+                                    default:
+                                        //Author not found
+                                        // console.warn("EXTENDED: ",data); // DEBUG    
+                                        break;
                                 }
       
                                 // console.log(data.publication.journalRanking); //DEBUG
@@ -4683,7 +4699,7 @@ input::-moz-range-thumb {
                                 //     new Map(innerEntries)
                                 // ])
                                 // );
-                                console.log("yearwiseData: ", data.yearwiseData); //DEBUG
+                                // console.log("yearwiseData: ", data.yearwiseData); //DEBUG
                                 const workerYearData = rebuildYearwiseData(data.yearwiseData);
 
                                 // console.log(workerYearData);
@@ -4706,7 +4722,7 @@ input::-moz-range-thumb {
 
                         // const pubWorker = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
                         // pubWorker.addEventListener('message', onPubDone);
-                        pubWorker.postMessage({ task: 'extendedScrape', batch: [publication], authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
+                        pubWorker.postMessage({ task: 'extendedScrape', batch: publication_batch, authorRegexes, authorRegexesEx, nameComboList, otherNamesList, authorNameShort, authorName, authorNameLong });
                         // await new Promise(res => {
                         //   const onPubDone = async ({ data }) => {
                         //     if (data.task === 'extendedScrape' && data.type === 'working'){
@@ -4929,7 +4945,7 @@ input::-moz-range-thumb {
                 pubWorkerPool.forEach(w => w.terminate()); // Terminate all workers
                 updateLoadingBar("publication_progress", 100, "Processing Publications :", true);
                 //MOVED TO WORKER THREAD - END
-                console.log(yearwiseData); //DEBUG
+                // console.log(yearwiseData); //DEBUG
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
 
@@ -4938,8 +4954,13 @@ input::-moz-range-thumb {
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
-                    if(!publicationData[index].journalRanking)
-                        console.log(index, publication.title, publication.authors)
+                    if(!publicationData[index].journalRanking){
+                        publicationData[index].journalRanking = "NA";
+                        // console.log(index, publication.title, publication.authors)
+                    }
+                    if(!publicationData[index].impact_factor){
+                        publicationData[index].impact_factor = "NA";
+                    }
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
 
                     publicationProgress += 1;
@@ -4973,23 +4994,9 @@ input::-moz-range-thumb {
                 // let retractionProgress = 0;
                 // let ele_index = 0;
                 // for(const [index, element] of publicationData.entries()) {
-                // publicationData.forEach(async (element, index) => {
-                for(const [index, element] of publicationData.entries()) {
-                    // publicationData.map(async (element, index) => {
-    
-                    // chrome.runtime.sendMessage({
-                    //     task: 'checkRetraction',
-                    //     element
-                    // });
-                    
-                    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-                    //     if (request.task === 'checkRetraction') {
-                    //         // Handle the processed data from the worker
-                    //         console.log('checkRetraction processed:', request);
-                    //         // Do something with the result, e.g., update the UI
-                    //     }
-                    // });
-                    
+                // for(const publication_batch of batches(publicationData.map((p,i)=>({...p,idx:i})), BATCH_SIZE)){
+                for (let i = 0; i < publicationData.length; i += BATCH_SIZE) {
+                    const publication_batch = publicationData.slice(i, i + BATCH_SIZE);
                     while(!retWorkerPool.find(w => w.idle)){
                         await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
                     }
@@ -5024,7 +5031,7 @@ input::-moz-range-thumb {
 
                     //MOVED to WORKER THREAD
                     // const retractionWorker = await createInlineWorker(chrome.runtime.getURL('workers/retractionWorker.min.js'));
-                    retractionWorker.postMessage({ task: 'checkRetraction', batch: [element], retractionWatchDB });
+                    retractionWorker.postMessage({ task: 'checkRetraction', batch: publication_batch, retractionWatchDB });
                     // await new Promise(res => {
                     //   const onPubDone = async ({ data }) => {
                     //     if (data.task === 'checkRetraction' && data.type === 'working'){

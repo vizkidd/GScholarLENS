@@ -33,6 +33,10 @@
 // const cluster = require('cluster');
 // const workerThreads = require('worker_threads');
 
+(function () {
+    releaseSemaphore();
+})();
+
 async function setInitializationStatus(status) {
     return new Promise(resolve => {
         chrome.storage.local.set({ "isInitialized": status }, resolve);
@@ -444,13 +448,16 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 // });
 
 chrome.action.onClicked.addListener((tab) => {
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content/GScholarLENS.js']  // Inject init.js into the active tab
-    }).catch(err => {
-      console.error("Injection failed:", err);
-    });
-  
+    const url = tab.url || "";
+    console.log("Clicked on tab URL:", url);
+    if (url.includes("user=") && url.includes("scholar.google")) {
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content/GScholarLENS.js']  // Inject init.js into the active tab
+        }).catch(err => {
+            console.error("Injection failed:", err);
+        });
+    }
 });
 
 // chrome.action.onClicked.addListener((tab) => {
