@@ -104,29 +104,30 @@ function releaseSemaphoreAndReload() {
       console.log(resp.status);
       window.location.reload();
     });
-  }
-  window.addEventListener('error', event => {
-    console.error('Uncaught error:', event);
-    // releaseSemaphoreAndReload();
+}
+  
+function releaseSemaphore(){
     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
         console.log(resp.status);
       });
+}
+
+  window.addEventListener('error', event => {
+    console.error('Uncaught error:', event);
+    // releaseSemaphoreAndReload();
+      releaseSemaphore();
   }, true);  // useCapture=true to catch as early as possible
   
   // 3) Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', event => {
     console.error('Unhandled rejection:', event);
     // releaseSemaphoreAndReload();
-    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
-      });
+    releaseSemaphore();
   }, true);
-  window.addEventListener('onbeforeunload', () => { //unload
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released"
-        });
-    }, true); // useCapture=true to catch as early as possible
 
+  window.addEventListener('beforeunload', () => { //unload
+        releaseSemaphore();
+    }, true); // useCapture=true to catch as early as possible
 
 
 //MOVED to init.js
@@ -328,9 +329,7 @@ async function getJCRExcel() {
     }
     catch (error) {
         console.error("Error: Could not fetch JCR excel data. " + error);
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released"
-        });
+        releaseSemaphore();
     }
 }
 async function getRetractionWatchDB() {
@@ -361,9 +360,7 @@ async function getRetractionWatchDB() {
     }
     catch (error) {
         console.error("Error: Could not RetractionWatchDB blob data. " + error);
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore released"
-        });
+        releaseSemaphore();
     }
 }
 
@@ -474,14 +471,10 @@ function createButton() {
         catch (error) {
             console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
             button.style.display = "none";
-            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-                console.log(response.status);  // Should log "Semaphore released" 
-            });
+            releaseSemaphore();
         } 
         // finally{
-        //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-        //         console.log(response.status);  // Should log "Semaphore released" 
-        //     });
+        //     releaseSemaphore();
         // }
 
     }, { passive: true });
@@ -517,50 +510,67 @@ function createButton() {
 // }
 
 /**
- * Recursively converts a plain‐object or primitive into the desired Map/Array/primitive.
- *   - Arrays are returned as‐is.
- *   - Plain objects become Maps whose values are themselves revived.
- *   - Primitives (string/number/boolean) are returned directly.
+ * Rebuilds the full Map<year, Map<key, Map|primitive>> structure
+ * from your serialized `yearwiseData` array.
+ *
+ * serializedArr: [
+ *   [ year, [
+ *       [ key1, val1 ],
+ *       [ key2, val2 ],
+ *       …
+ *     ]
+ *   ],
+ *   …
+ * ]
  */
-function reviveValue(val) {
-    if (Array.isArray(val)) {
-      // It might be the top‐level [year, innerEntries] tuples, or arrays of entries.
-      return val.map(item => reviveValue(item));
-    }
-    if (val !== null && typeof val === 'object') {
-      // Convert each own‐property into a Map entry
-      return new Map(
-        Object.entries(val).map(([k, v]) => [k, reviveValue(v)])
-      );
-    }
-    // primitive
-    return val;
-  }
-  
-  /**
-   * Rebuilds your top‐level yearwiseData from the serialized nested array:
-   *   [ [ year, [ [key, valueObj], [key, valueObj], … ] ], … ]
-   *
-   * @param {Array} serializedArr  finalZeroCopyArr.yearwiseData
-   * @returns {Map<string, Map<string, any>>}  exactly your original Map<year, Map<…>>
-   */
-  function rebuildYearwiseData(serializedArr) {
-    const result = new Map();
-  
-    for (const [year, innerArr] of serializedArr) {
-      // innerArr is an array of [ key, plainObject ] tuples
-      const innerMap = new Map();
-  
-      for (const [key, plainObj] of innerArr) {
-        // reviveValue will turn plainObj into a Map of Maps/arrays/primitives recursively
-        innerMap.set(key, reviveValue(plainObj));
+function rebuildYearwiseData(serializedArr) {
+  const result = new Map();
+
+  for (const [year, innerArr] of serializedArr) {
+    const innerMap = new Map();
+
+    for (const [key, rawVal] of innerArr) {
+      let rebuilt;
+
+      // Case A: rawVal is a 2-level entries array: [ [pos, quartEntries], … ]
+      if (
+        Array.isArray(rawVal) &&
+        rawVal.every(
+          ([pos, v]) =>
+            Array.isArray(v) &&
+            v.every(entry => Array.isArray(entry) && entry.length === 2)
+        )
+      ) {
+        // rebuild Map<pos, Map<quart, count>>
+        rebuilt = new Map(
+          rawVal.map(([pos, quartEntries]) => [
+            pos,
+            new Map(quartEntries)  // quartEntries is [ [Q1,0],… ]
+          ])
+        );
+
+      // Case B: rawVal is a 1-level entries array: [ [pos, count], … ]
+      } else if (
+        Array.isArray(rawVal) &&
+        rawVal.every(entry => Array.isArray(entry) && entry.length === 2)
+      ) {
+        // rebuild Map<pos, count>
+        rebuilt = new Map(rawVal);
+
+      // Case C: primitive (number, string, etc)
+      } else {
+        rebuilt = rawVal;
       }
-  
-      result.set(year, innerMap);
+
+      innerMap.set(key, rebuilt);
     }
-  
-    return result;
+
+    result.set(year, innerMap);
   }
+
+  return result;
+}
+
 
 /**
  * Deep-merges workerYearData into globalYearData.
@@ -627,13 +637,13 @@ async function mergeYearwiseData(globalYearData, workerYearData) {
     }
 
    
-    // console.log("Merging with:", workerYearData);
-    // console.log("Merged yearwise data:", globalYearData);
+    console.log("Merging with:", workerYearData);
+    console.log("Merged yearwise data:", globalYearData);
   }  
 
 function startScraping() {
     try {
-        const start_time = performance.now();
+        const startTime = performance.now();
         // Listen for visibility change events
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && profileScraped === true) {
@@ -874,7 +884,7 @@ function startScraping() {
         loadingBarContainer.style.marginTop = "50px";
         loadingBarContainer.style.width = "100%";
         loadingBarContainer.style.backgroundColor = "#ddd";
-        loadingBarContainer.style.borderRadius = "5px";
+        loadingBarContainer.style.borderRadius = "8px";
         loadingBarContainer.style.overflow = "hidden";
         loadingBarContainer.style.position = "relative";  // Needed for centering text overlay
 
@@ -906,23 +916,29 @@ function startScraping() {
             loadingText.style.position = "absolute";
             loadingText.style.width = "100%";
             loadingText.style.textAlign = "center";
-            loadingText.style.marginTop = "2px";
+            // loadingText.style.marginTop = "7px";
+            loadingText.style.alignSelf= "center";
+            loadingText.style.justifySelf = "center";
             loadingText.style.fontSize = "calc(0.3em + 0.55vw)";
             loadingText.style.color = "#000"; // Ensure text is visible
             loadingText.style.whiteSpace = "nowrap"; // Prevents text from wrapping
             loadingText.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
-            loadingText.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) + 1;  // Ensure the loading bar is behind the text
+            // loadingText.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) + 1;  // Ensure the loading bar is behind the text
             
             const loadingBar = document.createElement("div");
             loadingBar.id= element_id + "_bar";
             loadingBar.style.width = "0%"; // Start at 0%
             loadingBar.style.height = "20px";
+            loadingBar.style.borderRadius = "8px";
+            loadingBar.style.display = "flex"; // Flexbox for proper alignment
+            loadingBar.style.margin = "3px 3px 3px 3px";
             loadingBar.style.backgroundColor = progressColor;
             loadingBar.style.transition = "width 0.3s ease"; // Smooth transition effect
-            loadingBar.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) ;  // Ensure the loading bar is behind the text
+            // loadingBar.style.zIndex = zIndex * (navigator.hardwareConcurrency * 2) ;  // Ensure the loading bar is behind the text
             
 
-            loadingBarContainer.appendChild(loadingText);  // Append the text overlay to the container        
+            loadingBar.appendChild(loadingText);  // Append the text overlay to the loading bar
+            // loadingBarContainer.appendChild(loadingText);  // Append the text overlay to the container        
             // // Append the loading bar to the container
             // loadingBarContainer.appendChild(loadingBar);
             loadingBarContainer.appendChild(loadingBar);
@@ -953,14 +969,24 @@ function startScraping() {
             if (parentContainer) {       
                 const progress_text = document.getElementById(loadingBarID + "_text");
                 const progress_bar = document.getElementById(loadingBarID + "_bar");
-                progress_bar.style.width = progress.toFixed(2) + "%";
                 // loadingText.textContent = loadingBarText + `${progress.toFixed(2)}%`;
-                progress_text.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+                const marginLeft = parseFloat(progress_bar.style.marginLeft)  || 0;  // in px
+                const marginRight= parseFloat(progress_bar.style.marginRight) || 0;  // in px
+                // 2. Build your width expression: percentage minus total horizontal margins
+                const totalMarginPx = marginLeft + marginRight; // e.g. 8 + 8 = 16
+                if(progress >=0){
+                    progress_bar.style.width = 
+                    progress_bar.style.width = `calc(${progress.toFixed(2)}% - ${totalMarginPx}px)`; //${progress.toFixed(2)} + "%"
+                    progress_text.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+                }
+                else
+                    progress_text.textContent = loadingBarText;
+
                 if (progress >= 100) {
-                    await new Promise(r => setTimeout(r, 500));  // delete loading bar after few (?)seconds
-                    progress_text.remove();
-                    progress_bar.remove();
-                    loadingBarMaps.delete(loadingBarID);
+                    await new Promise(r => setTimeout(r, 1000));  // delete loading bar after few (?)seconds
+                    // progress_text.remove();
+                    // progress_bar.remove();
+                    // loadingBarMaps.delete(loadingBarID);
                 }
             }
         
@@ -2234,6 +2260,8 @@ input::-moz-range-thumb {
                 return [0, 0, 0, 0];
             }
 
+            console.log("scoreType:", yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").get(scoreType));//DEBUG
+
             return [
                 yearwiseData.get(year).get("author_pos_cite_qscore").get("first_author").get(scoreType),
                 yearwiseData.get(year).get("author_pos_cite_qscore").get("second_author").get(scoreType),
@@ -2436,6 +2464,7 @@ input::-moz-range-thumb {
                     continue;
                 }
                 let qScores = getQScoreCitationsByYear(scoreType, year.toString());
+                console.log("qScores:",qScores, "scoreType:", scoreType, "year:", year); //DEBUG
                 for (let i = 0; i < 4; i++) {
                     total[i] += qScores[i];
                 }
@@ -2450,6 +2479,7 @@ input::-moz-range-thumb {
                     continue;
                 }
                 let posCitations = getPosCitationsByYear(author_pos, year.toString());
+                console.log("posCitations:",posCitations); //DEBUG
                 for (let i = 0; i < 5; i++) {
                     total[i] += posCitations[i];
                 }
@@ -2710,7 +2740,8 @@ input::-moz-range-thumb {
                 getQScoreCitationsCumulative("NA", plottingMinYear, plottingMaxYear)
             ];
 
-            console.log(qScoreCitations); //DEBUG
+            console.log(`qScoreCitations: ${qScoreCitations}`); //DEBUG
+            console.log(`posTotalCitations: ${posTotalCitations}`)
 
             const authorCitationsChartData = {
                 // labels: ['First Author Citations\nTotal:' + getPosTotalCitations("first_author"), 'Second Author Citations\nTotal:' + getPosTotalCitations("second_author"), 'Co-Author Citations\nTotal:' + getPosTotalCitations("co_author"), 'Corresponding Author Citations\nTotal:' + getPosTotalCitations("corresponding_author")],
@@ -3466,6 +3497,7 @@ input::-moz-range-thumb {
 
         // Main scraping function for publications, citations, year, and authors
         const scrapePublications = async () => {
+            document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
             // Get all publication elements
             const publicationElements = document.querySelectorAll('.gsc_a_tr');
             // let urls = [];
@@ -3807,10 +3839,7 @@ input::-moz-range-thumb {
                     await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 } catch (error) {
                     console.log("Error Fetching Authors:", error);
-                    chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-                        console.log(response.status);  // Should log "Semaphore acquired" once acquired
-                    });
-                    window.location.reload();
+                    releaseSemaphoreAndReload();
                 }
                 // await new Promise(resolve => setTimeout(resolve, 500));  // Wait for 0.5 seconds
                 return results;
@@ -4128,7 +4157,7 @@ input::-moz-range-thumb {
                 const  pubWorkerPool = [];
                 
                 loadingBarMaps.set("publication_progress", createLoadingBar("publication_progress", loadingBarMaps.size + 1, "Processing Publications...", "rgb(103, 0, 172)"));
-                updateLoadingBar("publication_progress", 0, "Processing Publications...");
+                updateLoadingBar("publication_progress", -1, "Processing Publications...");
 
                 for (let i = 0; i < MAX_WORKERS/2; i++) {
                     const w = await createInlineWorker(chrome.runtime.getURL('workers/publicationWorker.min.js'));
@@ -4275,6 +4304,7 @@ input::-moz-range-thumb {
                             //     new Map(innerEntries.entries().map(([key, value]) => new Map(value.entries().map(([k, v]) => [k, v]))))
                             //   ])
                             // );
+                            console.log("yearwiseData: ", data.yearwiseData); //DEBUG
                             const workerYearData = rebuildYearwiseData(data.yearwiseData);
 
                             // console.log(workerYearData);
@@ -4638,12 +4668,13 @@ input::-moz-range-thumb {
                                         break;
                                 }
       
-
+                                // console.log(data.publication.journalRanking); //DEBUG
                                 tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
                             }
                             if (data.type === 'done') {
                                 authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
                                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
+                                
                                 // console.log(data);
                                 // // 4) Rebuild the Map-of-Maps if you need full Map APIs:
                                 // const workerYearData = new Map(
@@ -4652,6 +4683,7 @@ input::-moz-range-thumb {
                                 //     new Map(innerEntries)
                                 // ])
                                 // );
+                                console.log("yearwiseData: ", data.yearwiseData); //DEBUG
                                 const workerYearData = rebuildYearwiseData(data.yearwiseData);
 
                                 // console.log(workerYearData);
@@ -4895,18 +4927,19 @@ input::-moz-range-thumb {
                 }
 
                 pubWorkerPool.forEach(w => w.terminate()); // Terminate all workers
-                updateLoadingBar("publication_progress", 100, "Processing Publications...Done!", true);
+                updateLoadingBar("publication_progress", 100, "Processing Publications :", true);
                 //MOVED TO WORKER THREAD - END
                 console.log(yearwiseData); //DEBUG
                 authorNamesConsidered = [...authorNamesConsidered, ...namesList];
                 authorNamesConsidered = new Array(...new Set(authorNamesConsidered));
 
                 loadingBarMaps.set("journal_progress", createLoadingBar("journal_progress", loadingBarMaps.size + 1, "Processing Journal Rankings...", "rgb(0, 97, 207)"));
-                updateLoadingBar("journal_progress", 0, "Processing Journal Rankings...");
+                updateLoadingBar("journal_progress", -1, "Processing Journal Rankings...");
                 // Calculating QScore data for all publications
                 publicationProgress = 0;
                 publicationData.forEach(async (publication, index) => {
-                    // console.log(index, publication.title, publication.authors)
+                    if(!publicationData[index].journalRanking)
+                        console.log(index, publication.title, publication.authors)
                     processQScore(publicationData[index].author_pos, publicationData[index].year, publicationData[index].journalRanking);
 
                     publicationProgress += 1;
@@ -4914,14 +4947,14 @@ input::-moz-range-thumb {
                     // setTimeout(updateLoadingBar, 20, (publicationProgress / totalPublications) * 100, "Processing Journal Rankings (" + publicationProgress + "): ");
                     await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 });
-                updateLoadingBar("journal_progress", 100, "Processing Journal Rankings...Done!", true);
+                updateLoadingBar("journal_progress", 100, "Processing Journal Rankings :", true);
                 return true;
             }
 
             async function checkRetractedPublications() {
                 
                 loadingBarMaps.set("retract_progress", createLoadingBar("retract_progress", loadingBarMaps.size + 1, "Processing Retractions...", "rgb(255, 251, 0)"));
-                updateLoadingBar("retract_progress", 0, "Processing Retractions...");
+                updateLoadingBar("retract_progress", -1, "Processing Retractions...");
                 // updateLoadingBar((publicationProgress / totalPublications) * 100, "Processing Retractions... ", true);
                 await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                 retractionWatchDB = await getRetractionWatchDB();
@@ -5066,9 +5099,11 @@ input::-moz-range-thumb {
 
                 retWorkerPool.forEach(w => w.terminate()); // Terminate all workers
                 // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
-                updateLoadingBar("retract_progress", 100, "Processing Retractions...Done!");
+                updateLoadingBar("retract_progress", 100, "Processing Retractions : ");
                 return true;
             }
+
+            updateLoadingBar("main", -1, "Please Wait...", true);
 
             const [result1, result2] = await Promise.all([
                 processPublicationsData(),
@@ -5200,7 +5235,7 @@ input::-moz-range-thumb {
                 await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             });
 
-            updateLoadingBar("main", 99, "Processing Retractions... ", true);
+            // updateLoadingBar("main", 99, "Processing Retractions... ", true);
             // setTimeout(updateLoadingBar, 20, 0, "Processing Retractions... ");
             await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
             // const csvPath = chrome.runtime.getURL("data/retraction_watch_stripped.csv");
@@ -5571,17 +5606,26 @@ input::-moz-range-thumb {
             if (retractedPubsCount > 0) {
                 blinkText("blink_text", 1250);
             }
-            document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
+            // document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
             profileScraped = true;
-            chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-                console.log(release_response.status); // Logs "Semaphore released"
-            });
+            releaseSemaphore();
             // uncomment if you want to use popup again
             // sendResponse({ authorName: authorName, publications: publicationData });
-            const end_time = performance.now()
-            const time_difference_min = (end_time - start_time) / (1000 * 60);
-            const time_string = time_difference_min % 1 === 0 ? `${time_difference_min} minutes` : `${time_difference_min.toFixed(2) * 60} seconds`;
-            console.info(`Time taken by GScholarLENS: ${time_string}`);
+            const endTime = performance.now();
+            const elapsedMs = endTime - startTime;
+
+            // Break into whole units
+            const hours   = Math.floor(elapsedMs / 3_600_000);
+            const minutes = Math.floor((elapsedMs % 3_600_000) / 60_000);
+            const seconds = ((elapsedMs % 60_000) / 1000).toFixed(2);
+
+            // Build a human-friendly string
+            const parts = [];
+            if (hours   > 0) parts.push(`${hours}h`);
+            if (minutes > 0) parts.push(`${minutes}m`);
+            parts.push(`${seconds}s`);
+
+            console.info(`Time taken by GScholarLENS: ${parts.join(' ')}`);
         }; // scrapePublications - End
 
         // Click "Show More" until all publications are loaded
@@ -5614,19 +5658,16 @@ input::-moz-range-thumb {
         };
 
         // loadingText.textContent = "Waiting for other GScholarLENS processes to complete...";
-        updateLoadingBar("main", 0, "Waiting for other GScholarLENS processes to complete...", true);
+        updateLoadingBar("main", -1, "Waiting for other GScholarLENS processes to complete...", true);
         chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
             try {
                 //Wait for semaphore, update loading bar, click 'show more' to expand publications table/list and scrape publications
                 console.log(response.status);  // Should log "Semaphore acquired" once acquired
-                updateLoadingBar("main", 0, "Expanding Publications List: ", true);
+                updateLoadingBar("main", -1, "Expanding Publications List...", true);
                 const currentTabURL = window.location.href.toString();
                 fetch(currentTabURL).then((captchaTest) => {
                     if (captchaTest.status != 200) {
-                        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-                            console.log(release_response.status);  // Should log "Semaphore released" 
-                            window.location.reload();
-                        });
+                        releaseSemaphoreAndReload();
                     }
                 });
 
@@ -5640,18 +5681,14 @@ input::-moz-range-thumb {
             } catch (error) {
                 console.error("Error scraping profile:", error);
                 document.getElementsByTagName('body')[0].style.overflow = 'visible';
-                chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-                    console.log(release_response.status);  // Should log "Semaphore released" 
-                });
+                releaseSemaphore();
             }
         });
 
     } catch (error) {
         console.error("Error scraping:", error);
         document.getElementsByTagName('body')[0].style.overflow = 'visible';
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
-            console.log(release_response.status);  // Should log "Semaphore released" 
-        });
+        releaseSemaphore();
     } 
     // finally {
     //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
