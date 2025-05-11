@@ -6,6 +6,8 @@ let excelData = false;
 let retractionWatchDB = false;
 let profileScraped = false;
 let isDesktop = false;
+let isPermitted = false;
+let isInitialized = false;
 // Create TSV content
 let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
 
@@ -98,11 +100,38 @@ async function loadScript(url, callback, id) {
 //   };
 // }
 
+async function openPopupWindow(url) {
+  // Build the creation options
+  const createData = {
+    url: url,
+    type: 'popup',      // 'popup' gives you a window without normal browser chrome
+    width: 400,
+    height: 600,
+    left: 100,
+    top: 100,
+    focused: true
+  };
+
+  // Cross-browser API reference:
+  if (typeof browser !== 'undefined' && browser.windows) {
+    // Firefox (or Chrome with the "browser" namespace polyfill)
+    await browser.windows.create(createData);
+  } else if (typeof chrome !== 'undefined' && chrome.windows) {
+    // Chrome
+    chrome.windows.create(createData);
+  } else {
+    console.error('No windows API available');
+  }
+    return true;
+}
 (function () {
 
-    if(!window.location.href.includes("user=") || !window.location.href.includes("scholar.google")){
+    if (!window.location.href.includes("user=") || !window.location.href.includes("scholar.google")) {
         return;
     }
+    checkPermissions();
+    // checkInitialization();
+
     checkDevice();
     // This async function is like "main()" for each tab/content script.
     // It runs automatically to load the excel data from local storage and create the button.
@@ -142,7 +171,62 @@ function releaseSemaphoreAndReload() {
             console.log(resp.status);
         });
 }
-    
+
+
+function checkInitialization(){
+    chrome.runtime.sendMessage({ type: 'initialization_check' }, resp => {
+        isInitialized = resp.isInitialized;
+    });
+}
+
+function checkPermissions() {
+    chrome.runtime.sendMessage({ type: 'permissions_check' }, resp => {
+        isPermitted = resp.isPermitted;
+        if (!isPermitted)
+        {
+            // if (window.confirm("GScholarLENS requires your permissions. Please click 'Ok' to allow a permission request.")) {
+            if (window.confirm("GScholarLENS requires your permissions. Please click the extension icon to allow a permission request.")) {
+                // const permissionsPage = chrome.runtime.getURL("content/permissions.html");
+                // openPopupWindow(permissionsPage);
+                window.location.reload();
+            }
+            // window.alert("GScholarLENS requires your permissions. Please click on the extension icon to allow a permission request.");
+            return;
+        }
+    });
+}
+
+// async function permissionsCheck() {
+//     // const permissions = !chrome.permissions ? !browser.permissions ? null : browser.permissions : chrome.permissions;//manifest.optional_permissions || {};
+//     // console.log('permissions', await permissions.getAll());
+//     try {
+//         const manifest = chrome.runtime.getManifest();
+//         // console.log(manifest);
+//         const origins = manifest.host_permissions || [];
+//         const perms = manifest.optional_permissions || [];
+
+//         // Build the “contains” query object
+//         const query = {};
+//         if (origins.length) query.origins = origins;
+//         if (perms.length) query.permissions = perms;
+
+//         // Check whether *all* are already granted
+//         const already = await chrome.permissions.contains(query);
+//         if (!already) {
+//             // Not all granted — open the dialog
+//             const url = chrome.runtime.getURL('content/permissions.html');
+//             // chrome.windows.create({ url });
+//             console.log("here"); //DEBUG
+//             await openPopupWindow(url);
+//         } else {
+//             setPermissionStatus(true);
+//         }
+//     } catch (error) {
+//         console.error("Error requesting permissions:", error);
+//         setPermissionStatus(false);
+//     }
+// }
+
 function checkDevice() {
     chrome.runtime.sendMessage({ type: 'device_check' }, resp => {
         isDesktop = resp.isDesktop;

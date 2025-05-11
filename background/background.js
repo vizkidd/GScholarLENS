@@ -16,27 +16,94 @@
 
 // await chrome.storage.local.set({ "csp_hash_map": csp_hash_map });
 
-// // Initial state of the semaphore
-// chrome.runtime.onInstalled.addListener(() => {
-//     // Initialize storage or perform setup tasks here
-//     (async function () {
-//         // await chrome.storage.local.set({ "isScraping": false });
-//         await setSemaphoreStatus(false);
-//         await setInitializationStatus(false);
-//     })();
-// });
-// import { Worker } from 'cluster';
-// const fs = require('fs');
-// const net = require('net');
-// const os = require('os');
-// const path = require('path');
-// const cluster = require('cluster');
-// const workerThreads = require('worker_threads');
+// background.js
 
-(function () {
-    releaseSemaphore();
-    deviceCheck();
-})();
+// When the extension is installed or updated…
+chrome.runtime.onInstalled.addListener(async (details) => {
+    chrome.runtime.setUninstallURL('https://forms.gle/uHuKHqutNQF1ToPW7');
+//     console.log(details);
+//     if (details.reason === 'install' || details.reason === 'update') {
+//         // Open the permission-request page in a new tab
+//         if (!await isPermitted()) {
+//             const url = chrome.runtime.getURL('content/permissions.html');
+//             chrome.tabs.create({ url });
+//         }
+//   }
+});
+
+
+async function setPermissionStatus(status) {
+    return new Promise(resolve => {
+        chrome.storage.local.set({ "isPermitted": status }, resolve);
+    });
+}
+
+async function isPermitted() {
+    return new Promise(resolve => {
+        chrome.storage.local.get("isPermitted", (result) => {
+            resolve(result.isPermitted || false);
+        });
+    });
+    // const { ret_val } = await chrome.storage.local.get("isScraping");
+    // console.error("getSemaphoreStatus() : " + ret_val); //DEBUG
+    // return ret_val;
+}
+
+async function openPopupWindow(url) {
+  // Build the creation options
+  const createData = {
+    url: url,
+    type: 'popup',      // 'popup' gives you a window without normal browser chrome
+    width: 400,
+    height: 600,
+    left: 100,
+    top: 100,
+    focused: true
+  };
+
+  // Cross-browser API reference:
+  if (typeof browser !== 'undefined' && browser.windows) {
+    // Firefox (or Chrome with the "browser" namespace polyfill)
+    await browser.windows.create(createData);
+  } else if (typeof chrome !== 'undefined' && chrome.windows) {
+    // Chrome
+    chrome.windows.create(createData);
+  } else {
+    console.error('No windows API available');
+  }
+    return true;
+}
+
+async function permissionsCheck() {
+    // const permissions = !chrome.permissions ? !browser.permissions ? null : browser.permissions : chrome.permissions;//manifest.optional_permissions || {};
+    // console.log('permissions', await permissions.getAll());
+    try {
+        const manifest = chrome.runtime.getManifest();
+        // console.log(manifest);
+        const origins = manifest.host_permissions || [];
+        const perms = manifest.optional_permissions || [];
+
+        // Build the “contains” query object
+        const query = {};
+        if (origins.length) query.origins = origins;
+        if (perms.length) query.permissions = perms;
+
+        // Check whether *all* are already granted
+        const already = await chrome.permissions.contains(query);
+        if (!already) {
+            // Not all granted — open the dialog
+            const url = chrome.runtime.getURL('content/permissions.html');
+            // chrome.windows.create({ url });
+            // console.log("here"); //DEBUG
+            await openPopupWindow(url);
+        } else {
+            setPermissionStatus(true);
+        }
+    } catch (error) {
+        console.error("Error requesting permissions:", error);
+        setPermissionStatus(false);
+    }
+}
 
 async function setInitializationStatus(status) {
     return new Promise(resolve => {
@@ -98,33 +165,33 @@ async function releaseSemaphore() {
 }
 
 async function deviceCheck() {
-  try {
-     let isDesktop = false; // Default to false
-      // Use the appropriate API for each browser
-    const getPlatformInfo = (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getPlatformInfo)
-      ? browser.runtime.getPlatformInfo
-      : (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo)
-        ? () => new Promise(resolve => chrome.runtime.getPlatformInfo(resolve))
-        : null;
+    try {
+        let isDesktop = false; // Default to false
+        // Use the appropriate API for each browser
+        const getPlatformInfo = (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getPlatformInfo)
+            ? browser.runtime.getPlatformInfo
+            : (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo)
+                ? () => new Promise(resolve => chrome.runtime.getPlatformInfo(resolve))
+                : null;
 
-    if (!getPlatformInfo) {
-        isDesktop = false;
-        console.warn('getPlatformInfo API not available. Defaulting to isDesktop = false.');
-      return;
+        if (!getPlatformInfo) {
+            isDesktop = false;
+            console.warn('getPlatformInfo API not available. Defaulting to isDesktop = false.');
+            return;
+        }
+
+        const info = await getPlatformInfo();
+        isDesktop = info.os !== 'android';
+        console.log(info);
+
+        // Proceed with the rest of your extension logic
+        console.log(`Running on ${info.os}. isDesktop: ${isDesktop}`);
+        return new Promise(resolve => {
+            chrome.storage.local.set({ "isDesktop": isDesktop }, resolve);
+        });
+    } catch (error) {
+        console.error('Error determining platform:', error);
     }
-
-    const info = await getPlatformInfo();
-    isDesktop = info.os !== 'android';
-    console.log(info);
-    
-    // Proceed with the rest of your extension logic
-    console.log(`Running on ${info.os}. isDesktop: ${isDesktop}`);
-    return new Promise(resolve => {
-        chrome.storage.local.set({ "isDesktop": isDesktop }, resolve);
-    });
-  } catch (error) {
-    console.error('Error determining platform:', error);
-  }
 }
 
 async function isDesktop() {
@@ -136,6 +203,7 @@ async function isDesktop() {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // console.log("Received message:", request.type); //DEBUG
     if (request.type === 'get_semaphore') {
         (async () => {
             await waitForSemaphore();  // Wait for semaphore to be free
@@ -156,12 +224,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             sendResponse({ status: 'Initialized GScholarLENS!' });
         })();
-    }else if (request.type === 'device_check') {
+    } else if (request.type === 'device_check') {
         (async () => {
             while (!await isInitialized()) {
                 await new Promise(resolve => setTimeout(resolve, 50));  // Poll every 50ms
             }
             sendResponse({ isDesktop: await isDesktop() });
+        })();
+    } else if (request.type === 'permissions_check') {
+        (async () => {
+            // console.log("here0.1"); //DEBUG
+            // if (!await isPermitted()) {
+            //     // console.log("here0.2"); //DEBUG
+            //     await permissionsCheck();
+            // }
+            // console.log("here0.3"); //DEBUG
+            sendResponse({ isPermitted: await isPermitted() });
+        })();
+    } else if (request.type === 'permissions_granted') {
+        (async () => {
+            console.log("here1"); //DEBUG
+            await setPermissionStatus(true);
+            if (!await isInitialized()) { 
+                console.log("here2"); //DEBUG
+                await initializeGScholarLENS();
+            }
+            sendResponse({ isPermitted: await isPermitted() });
+        })();
+    } else if (request.type === 'initialize_gscholarlens') {
+        (async () => {
+            await initializeGScholarLENS();
+            sendResponse({ isInitialized: await isInitialized() });
+        })();
+    } else if (request.type === 'initialization_check') {
+        (async () => {
+            sendResponse({ isInitialized: await isInitialized() });
         })();
     }
     return true; // Indicate that response is asynchronous
@@ -328,11 +425,11 @@ async function getRetractionWatchDB() {
 //     h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
 //     h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
 //     h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  
+
 //     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 // };
 // async function fetchWithSessionCache(key, url, refetch = false) {
-    
+
 //     if (!key || key.length === 0) {
 //         // console.warn("Empty Cache key");
 //         return null;   
@@ -366,10 +463,22 @@ async function getRetractionWatchDB() {
 async function downloadRetractionWatchDB() {
 
     try {
+
+        // while (!await isPermitted()) {
+        //     await new Promise(resolve => setTimeout(resolve, 150));  // Poll every 50ms
+        //     console.log('Waiting for permissions to download RetractionWatchDB...');
+        // }
+
         await waitForSemaphore();
+        // const proxy = "https://cors.bridged.cc/";  // or https://api.allorigins.win/raw?url=
+        // const target = encodeURIComponent(
+        // "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv"
+        // );
+        // const response = await fetch(proxy + target);
 
         const response = await fetch("https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv");
-        // const response = await fetchWithSessionCache("retraction_watch_data", "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv");
+        // console.log("Response status:", response); //DEBUG
+        // // const response = await fetchWithSessionCache("retraction_watch_data", "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv");
         const data = await response.blob();
         Papa.parse(data, {
             // download: true,
@@ -396,7 +505,7 @@ async function downloadRetractionWatchDB() {
         // const csvPath = chrome.runtime.getURL("data/retraction_watch_stripped.txt");
 
 
-        
+
 
         // data.pipeTo(parseStream);
         // data.pipeThrough(new TextDecoderStream()).pipeTo(parseStream);
@@ -412,9 +521,10 @@ async function downloadRetractionWatchDB() {
         // });
     } catch (error) {
         console.error("Error downloading RetractionWatchDB data :", error);
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
-            console.log(response.status);  // Should log "Semaphore acquired" once acquired
-        });
+        // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (response) => {
+        //     console.log(response.status);  // Should log "Semaphore acquired" once acquired
+        // });
+        releaseSemaphore();
     }
 
 }
@@ -477,12 +587,18 @@ if (typeof importScripts === "function") {
 //     }
 // }
 
-const xlsxPath = chrome.runtime.getURL('libs/xlsx.full.min.js');
-loadScript(xlsxPath, readJCRExcel);
-
-const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
-// const ldbPath = chrome.runtime.getURL('libs/localdata.min.js');
-loadScript(papaparsePath, downloadRetractionWatchDB);
+async function initializeGScholarLENS() {
+    const [result1, result2] = await Promise.all([
+        new Promise((resolve) => {
+            const xlsxPath = chrome.runtime.getURL('libs/xlsx.full.min.js');
+            loadScript(xlsxPath, readJCRExcel);
+        }),
+        new Promise((resolve) => {
+            const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
+            loadScript(papaparsePath, downloadRetractionWatchDB);
+        })
+    ]);
+}
 // await downloadRetractionWatchDB();
 
 // chrome.action.onClicked.addListener((tab) => {
@@ -495,7 +611,7 @@ loadScript(papaparsePath, downloadRetractionWatchDB);
 
 chrome.action.onClicked.addListener((tab) => {
     const url = tab.url || "";
-    console.log("Clicked on tab URL:", url);
+    // console.log("Clicked on tab URL:", url);
     if (url.includes("user=") && url.includes("scholar.google")) {
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -533,7 +649,25 @@ chrome.action.onClicked.addListener((tab) => {
 //   });
 // }
 
-chrome.action.onClicked.addListener(() => {
+chrome.action.onClicked.addListener(async () => {
+    if (!await isPermitted()) await permissionsCheck();
     chrome.tabs.create({ url: "https://project.iith.ac.in/sharmaglab/gscholarlens/" }); // Navigates to the GScholarLENS website on clicking the extension icon
 });
 
+
+
+(async function () {
+    // if (!runtime) {
+    //     console.error('No valid runtime environment found.');
+    // }
+    await permissionsCheck();
+    releaseSemaphore();
+    deviceCheck();
+    if (await isPermitted()) {
+        // console.log("Permissions granted");
+        await initializeGScholarLENS();
+    }
+    // else {
+    //     console.log("Permissions NOT granted");
+    // }
+})();

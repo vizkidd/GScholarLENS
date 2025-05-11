@@ -1,0 +1,51 @@
+<!-- permissions.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>GScholarLENS Permissions</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 1rem;
+        }
+
+        button {
+            font-size: 1rem;
+            padding: 0.75rem;
+        }
+
+        .perm {
+            margin: 0.5rem 0;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;    /* vertically centers the items */
+            gap: 0.5rem;            /* space between image and text */
+        }
+        .header-container img {
+            width: 5%;
+            height: auto;
+        }
+        .header-container h1 {
+            margin: 0;             /* remove default top/bottom margins */
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-container">
+        <img src="https://project.iith.ac.in/sharmaglab/gscholarlens/icons/icon128.png" alt="Logo">
+        <h1>GScholarLENS</h1>
+    </div>
+    <p>To work correctly, GScholarLENS needs the following permissions:</p>
+    <div id="perm-list"></div>
+    <button id="request-btn">Grant Permissions</button>
+    <script src="permissions.min.js"></script>
+</body>
+
+</html>
