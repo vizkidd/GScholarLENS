@@ -142,7 +142,7 @@ async function openPopupWindow(url) {
     (async function () {
         const currentTabURL = window.location.href.toString();
         const captchaTest = await fetchWithSessionCache(currentTabURL, currentTabURL, refetch = true);
-        if (captchaTest.status != 200) {
+        if (!captchaTest || captchaTest.status != 200) {
             // chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {
             //     console.log(release_response.status);  // Should log "Semaphore released" 
             //     window.location.reload();
@@ -159,17 +159,19 @@ async function openPopupWindow(url) {
     
 })();
 
-function releaseSemaphoreAndReload() {
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+async function releaseSemaphoreAndReload() {
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
         console.log(resp.status);
         window.location.reload();
-        });
-    }
+        return true;
+    });
+}
     
-    function releaseSemaphore(){
-        chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-            console.log(resp.status);
-        });
+async function releaseSemaphore(){
+    chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
+        console.log(resp.status);
+        return true;
+    });
 }
 
 
@@ -247,8 +249,8 @@ function checkDevice() {
     //     releaseSemaphore();
     // }, true);
 
-    window.addEventListener('beforeunload', () => { //unload
-            releaseSemaphore();
+    window.addEventListener('beforeunload', async () => { //unload
+            await releaseSemaphore();
         }, true); // useCapture=true to catch as early as possible
 
 
@@ -428,7 +430,7 @@ async function getJCRExcel() {
     }
     catch (error) {
         console.error("Error: Could not fetch JCR excel data. " + error);
-        releaseSemaphore();
+        await releaseSemaphore();
     }
 }
 async function getRetractionWatchDB() {
@@ -459,7 +461,7 @@ async function getRetractionWatchDB() {
     }
     catch (error) {
         console.error("Error: Could not RetractionWatchDB blob data. " + error);
-        releaseSemaphore();
+        await releaseSemaphore();
     }
 }
 
@@ -573,7 +575,9 @@ function createButton() {
         catch (error) {
             console.error("Error at startScraping() event: " + error);  // Should log "Semaphore released" 
             button.style.display = "none";
-            releaseSemaphore();
+            (async () => { 
+                await releaseSemaphore();
+            })();
         } 
         // finally{
         //     releaseSemaphore();
@@ -3676,7 +3680,7 @@ input::-moz-range-thumb {
                     await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                 } catch (error) {
                     console.log("Error Fetching Authors:", error);
-                    releaseSemaphoreAndReload();
+                    await releaseSemaphoreAndReload();
                 }
                 // await new Promise(resolve => setTimeout(resolve, 500));  // Wait for 0.5 seconds
                 return results;
@@ -4013,7 +4017,7 @@ input::-moz-range-thumb {
                     while (pub_idx.some(p=> p > retractionProgress)) {
                         //    console.log(retractedPubsIdxList.length); //DEBUG
                         //wait until retraction check is complete for the specific publication
-                        await new Promise(r => setTimeout(r, 100));  // Allow other tasks to run
+                        await new Promise(r => setTimeout(r, 50));  // Allow other tasks to run
                     }
 
                     // if (retractedPubsIdxList.includes(pub_idx)) {
@@ -4059,19 +4063,24 @@ input::-moz-range-thumb {
                         if (data.task === 'initialScrape' && data.type === 'working'){
                             publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
                             // console.log(publicationData[data.publication.index].authors);//DEBUG
-                            if(!data.authorFound && data.extended_scrape){
+                            if (data.publication.authors.includes("...") && data.publication.total_authors > 1 && data.publication.total_authors < 7) { 
+                                publicationData[data.publication.index].extended_scrape = true;
+                                return;
+                            }
+                            if (!data.authorFound && data.extended_scrape) {
                                 extended_scrape = true;
                             // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
                                 return;
                             }
+
+
                             publicationProgress+=1;
                             updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
                             await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
                             // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
-                            processedPubsIdx.add(data.publication.index);
 
-                            // authorRegexes = [...authorRegexes, ...data.authorRegexes];
-                            // authorRegexes = new Array(...new Set(authorRegexes));
+                            processedPubsIdx.add(data.publication.index);
+                            
 
                             if(data.publication.year.toString().trim().length === 0){
                                 pub_no_year += 1;
@@ -4116,7 +4125,8 @@ input::-moz-range-thumb {
                               //Author not found
                             //   console.warn("INITIAL: ",data); // DEBUG    
                               break;
-                      }
+                            }
+
                       tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
 
                         }
@@ -4379,8 +4389,10 @@ input::-moz-range-thumb {
                     }
 
                     //Fetch all the URLs in one go
-                    let urls = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.publicationURL);
-                    let pub_titles = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.title);
+                    // let urls = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.publicationURL);
+                    // let pub_titles = publicationData.filter(pub => pub.authors === "Pending").map(pub => pub.title);
+                    let urls = publicationData.filter(pub => pub.extended_scrape === true).map(pub => pub.publicationURL);
+                    let pub_titles = publicationData.filter(pub => pub.extended_scrape === true).map(pub => pub.title);
                     // console.log(pub_titles); //DEBUG
                     const authorsListExt = await fetchFullAuthorsWithLimit(pub_titles, urls, urls.length, 0);
                     // console.warn(urls); //DEBUG
@@ -4416,7 +4428,7 @@ input::-moz-range-thumb {
                         while (pub_idx.some(p=> p > retractionProgress)) {
                             // console.log(retractedPubsIdxList.length); //DEBUG
                             //wait until retraction check is complete for the specific publication
-                            await new Promise(resolve => setTimeout(resolve, 100));
+                            await new Promise(resolve => setTimeout(resolve, 50));
                             // await new Promise(r => setTimeout(r, 0));  // Allow other tasks to run
                         }
 
@@ -5440,7 +5452,9 @@ input::-moz-range-thumb {
             }
             // document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
             profileScraped = true;
-            releaseSemaphore();
+            (async () => { 
+                await releaseSemaphore();
+            })();
             // uncomment if you want to use popup again
             // sendResponse({ authorName: authorName, publications: publicationData });
             const endTime = performance.now();
@@ -5499,7 +5513,9 @@ input::-moz-range-thumb {
                 const currentTabURL = window.location.href.toString();
                 fetch(currentTabURL).then((captchaTest) => {
                     if (captchaTest.status != 200) {
-                        releaseSemaphoreAndReload();
+                        (async () => { 
+                            await releaseSemaphoreAndReload();
+                        })();
                     }
                 });
 
@@ -5513,14 +5529,19 @@ input::-moz-range-thumb {
             } catch (error) {
                 console.error("Error scraping profile:", error);
                 document.getElementsByTagName('body')[0].style.overflow = 'visible';
-                releaseSemaphore();
+                (async () => { 
+                    await releaseSemaphore();
+                })();
             }
         });
 
     } catch (error) {
         console.error("Error scraping:", error);
         document.getElementsByTagName('body')[0].style.overflow = 'visible';
-        releaseSemaphore();
+        (async () => { 
+            await releaseSemaphore();
+        })();
+        
     } 
     // finally {
     //     chrome.runtime.sendMessage({ type: 'release_semaphore' }, (release_response) => {

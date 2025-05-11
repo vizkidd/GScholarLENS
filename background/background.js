@@ -23,12 +23,12 @@
     //     console.error('No valid runtime environment found.');
     // }
     await permissionsCheck();
-    releaseSemaphore();
+    await releaseSemaphore();
     deviceCheck();
-    // if (await isPermitted()) {
+    if (await isPermitted()) {
     //     // console.warn("Permissions granted");
-    //     await initializeGScholarLENS();
-    // }
+        await initializeGScholarLENS();
+    }
     // // else {
     // //     console.warn("Permissions NOT granted");
     // // }
@@ -251,9 +251,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             // console.log("here0.1"); //DEBUG
             // if (!await isPermitted()) {
-            //     // console.log("here0.2"); //DEBUG
+            // //     // console.log("here0.2"); //DEBUG
             //     await permissionsCheck();
             // }
+            if (await isPermitted() && !await isInitialized()) { 
+                // console.log("here0.2"); //DEBUG
+                await initializeGScholarLENS();
+            }
             // console.log("here0.3"); //DEBUG
             sendResponse({ isPermitted: await isPermitted() });
         })();
@@ -261,10 +265,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             // console.log("here1"); //DEBUG
             await setPermissionStatus(true);
-            // if (!await isInitialized()) { 
+            if (!await isInitialized()) { 
             //     // console.log("here2"); //DEBUG
-            //     await initializeGScholarLENS();
-            // }
+                await initializeGScholarLENS();
+            }
             sendResponse({ isPermitted: await isPermitted() });
         })();
     } else if (request.type === 'initialization_check') {
@@ -631,23 +635,6 @@ function loadLib(url, onDone) {
 //     // loadScript(papaparsePath, downloadRetractionWatchDB);
 // }
 
-const xlsxPath = chrome.runtime.getURL('libs/xlsx.full.min.js');
-loadScript(xlsxPath, async () => {
-    while (!await isPermitted()) { 
-        await new Promise(resolve => setTimeout(resolve, 50));  // Poll every 50ms
-        // console.log('Waiting for permissions to read JCR Excel...');
-    }
-    readJCRExcel();
-});
-const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
-loadScript(papaparsePath, async () => {
-    while (!await isPermitted()) { 
-        await new Promise(resolve => setTimeout(resolve, 50));  // Poll every 50ms
-        // console.log('Waiting for permissions to download RetractionWatchDB...');
-    }
-    downloadRetractionWatchDB();
-});
-
 // await downloadRetractionWatchDB();
 
 // chrome.action.onClicked.addListener((tab) => {
@@ -670,6 +657,36 @@ chrome.action.onClicked.addListener((tab) => {
         });
     }
 });
+
+// importScripts(
+//   chrome.runtime.getURL('libs/xlsx.full.min.js'),
+//   chrome.runtime.getURL('libs/papaparse.min.js')
+// );
+if (typeof importScripts === "function") {
+    importScripts(
+        chrome.runtime.getURL('libs/xlsx.full.min.js'),
+        chrome.runtime.getURL('libs/papaparse.min.js')
+    );
+}
+
+async function initializeGScholarLENS() {
+    if (typeof importScripts === "function") {
+        readJCRExcel();
+        downloadRetractionWatchDB();
+    } else {
+        // await Promise.all([() => {
+        const xlsxPath = chrome.runtime.getURL('libs/xlsx.full.min.js');
+        loadScript(xlsxPath, readJCRExcel);
+        // },()=>{
+        const papaparsePath = chrome.runtime.getURL('libs/papaparse.min.js');
+        loadScript(papaparsePath, downloadRetractionWatchDB);
+        // }]);
+        // const [result1, result2] = await Promise.all([
+        //     readJCRExcel(),
+        //     downloadRetractionWatchDB()
+        // ]);
+    }
+}
 
 // chrome.action.onClicked.addListener((tab) => {
 //   // Check if the tab is already loaded
