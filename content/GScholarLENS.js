@@ -4064,11 +4064,13 @@ input::-moz-range-thumb {
                             publicationData[data.publication.index] = data.publication; // Update the publication data with the modified publication values
                             // console.log(publicationData[data.publication.index].authors);//DEBUG
                             if (data.publication.authors.includes("...") && data.publication.total_authors > 1 && data.publication.total_authors < 7) { 
+                                extended_scrape = true;
                                 publicationData[data.publication.index].extended_scrape = true;
                                 return;
                             }
                             if (!data.authorFound && data.extended_scrape) {
                                 extended_scrape = true;
+                                publicationData[data.publication.index].extended_scrape = true;
                             // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
                                 return;
                             }
@@ -4126,7 +4128,7 @@ input::-moz-range-thumb {
                             //   console.warn("INITIAL: ",data); // DEBUG    
                               break;
                             }
-
+                        publicationData[data.publication.index].extended_scrape = false;
                       tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${adjustedCitationCount}\t${citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
 
                         }
@@ -4394,6 +4396,7 @@ input::-moz-range-thumb {
                     let urls = publicationData.filter(pub => pub.extended_scrape === true).map(pub => pub.publicationURL);
                     let pub_titles = publicationData.filter(pub => pub.extended_scrape === true).map(pub => pub.title);
                     // console.log(pub_titles); //DEBUG
+                    // console.log(urls); //DEBUG
                     const authorsListExt = await fetchFullAuthorsWithLimit(pub_titles, urls, urls.length, 0);
                     // console.warn(urls); //DEBUG
                     urls = [];
@@ -4403,7 +4406,8 @@ input::-moz-range-thumb {
                     let authorIndexExt = 0;
 
                     publicationData.forEach(async (publication, i) => {
-                            if (publication.authors === "Pending") {
+                        // if (publication.authors === "Pending") {
+                        if (publication.extended_scrape) {
                                 publication.authors = authorsListExt[authorIndexExt] || "Authors not found";
                                 authorIndexExt++;
                             } else {

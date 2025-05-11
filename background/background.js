@@ -499,8 +499,16 @@ async function downloadRetractionWatchDB() {
 
         const response = await fetch("https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv");
         // console.log("Response status:", response); //DEBUG
-        // // const response = await fetchWithSessionCache("retraction_watch_data", "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv");
-        const data = await response.blob();
+        const reader = response.body.getReader();
+        const chunks = [];
+        let done = false;
+        while (!done) {
+            const { value, done: streamDone } = await reader.read();
+            if (value) chunks.push(value);
+            done = streamDone;
+        }
+        const data =  new Blob(chunks);
+        // const data = await response.blob();
         Papa.parse(data, {
             // download: true,
             header: true, // Adjust based on your CSV structure
