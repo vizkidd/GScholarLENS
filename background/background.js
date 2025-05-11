@@ -35,6 +35,7 @@
 
 (function () {
     releaseSemaphore();
+    deviceCheck();
 })();
 
 async function setInitializationStatus(status) {
@@ -96,6 +97,44 @@ async function releaseSemaphore() {
     await setSemaphoreStatus(false);
 }
 
+async function deviceCheck() {
+  try {
+     let isDesktop = false; // Default to false
+      // Use the appropriate API for each browser
+    const getPlatformInfo = (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getPlatformInfo)
+      ? browser.runtime.getPlatformInfo
+      : (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo)
+        ? () => new Promise(resolve => chrome.runtime.getPlatformInfo(resolve))
+        : null;
+
+    if (!getPlatformInfo) {
+        isDesktop = false;
+        console.warn('getPlatformInfo API not available. Defaulting to isDesktop = false.');
+      return;
+    }
+
+    const info = await getPlatformInfo();
+    isDesktop = info.os !== 'android';
+    console.log(info);
+    
+    // Proceed with the rest of your extension logic
+    console.log(`Running on ${info.os}. isDesktop: ${isDesktop}`);
+    return new Promise(resolve => {
+        chrome.storage.local.set({ "isDesktop": isDesktop }, resolve);
+    });
+  } catch (error) {
+    console.error('Error determining platform:', error);
+  }
+}
+
+async function isDesktop() {
+    return new Promise(resolve => {
+        chrome.storage.local.get("isDesktop", (result) => {
+            resolve(result.isDesktop || false);
+        });
+    });
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'get_semaphore') {
         (async () => {
@@ -116,6 +155,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.log('Waiting for initialization...');
             }
             sendResponse({ status: 'Initialized GScholarLENS!' });
+        })();
+    }else if (request.type === 'device_check') {
+        (async () => {
+            while (!await isInitialized()) {
+                await new Promise(resolve => setTimeout(resolve, 50));  // Poll every 50ms
+            }
+            sendResponse({ isDesktop: await isDesktop() });
         })();
     }
     return true; // Indicate that response is asynchronous

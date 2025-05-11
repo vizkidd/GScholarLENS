@@ -9,32 +9,6 @@ let isDesktop = false;
 // Create TSV content
 let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
 
-(async () => {
-  let isDesktop = true;
-
-  try {
-    // Use the appropriate API for each browser
-    const getPlatformInfo = (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getPlatformInfo)
-      ? browser.runtime.getPlatformInfo
-      : (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo)
-        ? () => new Promise(resolve => chrome.runtime.getPlatformInfo(resolve))
-        : null;
-
-    if (!getPlatformInfo) {
-        isDesktop = false;
-      return;
-    }
-
-    const info = await getPlatformInfo();
-    isDesktop = info.os !== 'android';
-
-    // Proceed with the rest of your extension logic
-    console.log(`Running on ${info.os}. isDesktop: ${isDesktop}`);
-  } catch (error) {
-    console.error('Error determining platform:', error);
-  }
-})();
-
 
 // Add the font to the document once it's loaded
 schibsted_grotesk.load().then((loadedFont) => {
@@ -129,7 +103,7 @@ async function loadScript(url, callback, id) {
     if(!window.location.href.includes("user=") || !window.location.href.includes("scholar.google")){
         return;
     }
-
+    checkDevice();
     // This async function is like "main()" for each tab/content script.
     // It runs automatically to load the excel data from local storage and create the button.
     // It does a preliminary test for the presence of a CAPTCHA page.
@@ -167,7 +141,13 @@ function releaseSemaphoreAndReload() {
         chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
             console.log(resp.status);
         });
-    }
+}
+    
+function checkDevice() {
+    chrome.runtime.sendMessage({ type: 'device_check' }, resp => {
+        isDesktop = resp.isDesktop;
+    });
+}
 
     //FOR - DEBUGGING - DEBUG
     // window.addEventListener('error', event => {
