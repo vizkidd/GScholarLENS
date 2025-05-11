@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GScholarLENS",
-  "version": "1.6.3",
+  "version": "1.7.4",
   "description": "Advanced Insights into Google Scholar Profiles.",
   "permissions": [
     "activeTab",
@@ -10,7 +10,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
-    "*://gitlab.com/crossref/retraction-watch-data/",
+    "*://gitlab.com/crossref/retraction-watch-data/*",
     "*://scholar.google.com/*",
     "*://scholar.google.at/*",
     "*://scholar.google.be/*",
@@ -102,6 +102,8 @@
         "libs/dom-to-image-more.min.js",
         "workers/publicationWorker.min.js",
         "workers/retractionWorker.min.js",
+        "content/permissions.html",
+        "content/permissions.min.js",
         "content/GScholarLENS.min.js"
       ],
       "matches": [
@@ -255,9 +257,7 @@
       "id": "scholarlens@sharmag.bt.iith.ac.in",
       "strict_min_version": "138.0.1"
     },
-    "gecko_android": {
-      "strict_min_version": "140.0a1"
-    },
+    "gecko_android": {},
     "chrome": {
       "id": "scholarlens@sharmag.bt.iith.ac.in",
       "strict_min_version": "109.0"
