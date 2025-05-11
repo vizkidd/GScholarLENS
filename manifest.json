@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GScholarLENS",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Advanced Insights into Google Scholar Profiles.",
   "permissions": [
     "activeTab",
@@ -250,17 +250,13 @@
     "extension_pages": 
       "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },
-  "applications": {
-    "gecko": {
-      "id": "scholarlens@sharmag.bt.iith.ac.in",
-      "strict_min_version": "140.0a1",
-      "supported_multiprocess": true
-    }
-  },
   "browser_specific_settings": {
     "gecko": {
       "id": "scholarlens@sharmag.bt.iith.ac.in",
-      "strict_min_version": "109.0"
+      "strict_min_version": "138.0.1"
+    },
+    "gecko_android": {
+      "strict_min_version": "140.0a1"
     },
     "chrome": {
       "id": "scholarlens@sharmag.bt.iith.ac.in",
