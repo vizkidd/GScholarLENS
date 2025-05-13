@@ -10,111 +10,118 @@ GScholarLENS is a browser extension that enriches Google Scholar profiles with a
 
 ---
 
-## 📝 Overview  
+## 📝 Overview
+
 GScholarLENS synchronizes with Google Scholar to:
 
 - **Extract Publication Data**  
-  Titles, authors, citation counts, and years are scraped directly from each profile entry​ 
+  Titles, authors, citation counts, and years are scraped directly from each profile entry​
 - **Classify Authorship Roles**  
-  Each paper is tagged as **First Author**, **Second Author**, **Co-Author**, or **Corresponding Author** using pattern matching (e.g., `*`, `^`)​ 
+  Each paper is tagged as **First Author**, **Second Author**, **Co-Author**, or **Corresponding Author** using pattern matching (e.g., `*`, `^`)​
 - **Integrate Journal Rankings**  
-  Publications are mapped to JCR quartiles (Q1–Q4) via a local JSON/TSV lookup​ 
+  Publications are mapped to JCR quartiles (Q1–Q4) via a local JSON/TSV lookup​
 - **Detect Retractions**  
   Retracted items are flagged by cross-referencing public retraction sources, ensuring an ethical evaluation​
 - **Visualize Analytics**  
-  Dynamic charts (stacked bars, violin plots, time series) are rendered with Chart.js and its extensions​ 
+  Dynamic charts (stacked bars, violin plots, time series) are rendered with Chart.js and its extensions​
 - **Export Data**  
-  A “Download Publications” button outputs a TSV of all parsed fields: title, authors, year, citations, journal, quartile, role, and retraction status​ 
+  A “Download Publications” button outputs a TSV of all parsed fields: title, authors, year, citations, journal, quartile, role, and retraction status​
 
 ---
 
-## 🚀 Features  
+## 🚀 Features
 
-### 1. Data Extraction & Normalization  
-- Scrapes each Google Scholar entry, including expanded author lists for truncated records (“…”) by fetching individual publication pages​ 
-- Normalizes author-name variations (e.g., “G. Sharma,” “Gaurav Sharma”) to minimize misattribution​ 
+### 1. Data Extraction & Normalization
 
-### 2. Authorship Role Analysis  
-- **First Author**: Primary contributor (first name in list).  
-- **Second Author**: Second listed contributor.  
-- **Co-Author**: Middle authors, excluding first, second, and corresponding.  
-- **Corresponding Author**: Typically the last or marked with `*`​ 
+- Scrapes each Google Scholar entry, including expanded author lists for truncated records (“…”) by fetching individual publication pages​
+- Normalizes author-name variations (e.g., “G. Sharma,” “Gaurav Sharma”) to minimize misattribution​
 
-### 3. Journal Quartile Ranking  
-- Local dataset maps journal titles to Q1–Q4; unmatched journals are flagged as NA​ 
-- Quartile data is used to color-code and segment visualizations.  
+### 2. Authorship Role Analysis
 
-### 4. Citation & Contribution Metrics  
+- **First Author**: Primary contributor (first name in list).
+- **Second Author**: Second listed contributor.
+- **Co-Author**: Middle authors, excluding first, second, and corresponding.
+- **Corresponding Author**: Typically the last or marked with `*`​
+
+### 3. Journal Quartile Ranking
+
+- Local dataset maps journal titles to Q1–Q4; unmatched journals are flagged as NA​
+- Quartile data is used to color-code and segment visualizations.
+
+### 4. Citation & Contribution Metrics
+
 - **Publications by Role**
-- **Citations by Role**    
+- **Citations by Role**
 - **Quartile Citations**
-  
-### 5. Sh-Index (Weighted h-Index Variant)  
-- Computes an h-index per role using weighted citations, then aggregates into a single Sh-Index​ 
 
-### 6. Retraction Handling  
-- Flags retracted papers via public APIs or local retraction datasets.  
+### 5. Sh-Index (Weighted h-Index Variant)
 
----
+- Computes an h-index per role using weighted citations, then aggregates into a single Sh-Index​
 
-## 📊 Visualizations  
+### 6. Retraction Handling
 
-| Chart                                   | Description                                                                                   |
-|-----------------------------------------|-----------------------------------------------------------------------------------------------|
-| **Authorship Role Counts**              | Bar chart of total publications by role.                                                    |
-| **Role × Journal Quartile**             | Stacked bars showing Q1–Q4 publications per role.                                           |
-| **Citation Count by Role & Quartile**   | Stacked bars of citations per role, segmented by quartile.                                  |
-| **Citation Distribution (Violin Plot)** | Violin plots (log scale) for citation spread across roles.                                  |
-| **Authorship % Contribution**           | 100% stacked bar of publication shares per role.                                            |
-| **Citation % Contribution**             | 100% stacked bar of citation shares per role.                                               |
-| **Time-Series (Last 10 Years)**         | Bar/line chart of annual publication counts.                                                |
-| **Retraction Flags**                    | Markers or exclusions for confirmed retracted papers.                                       |
+- Flags retracted papers via public APIs or local retraction datasets.
 
 ---
 
-## 🔧 Installation  
+## 📊 Visualizations
 
-1. **Chrome**: Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gscholarlens/gkdjmplmnhobhaoobcgklnfkoclpebbn).  
+| Chart                                   | Description                                                |
+| --------------------------------------- | ---------------------------------------------------------- |
+| **Authorship Role Counts**              | Bar chart of total publications by role.                   |
+| **Role × Journal Quartile**             | Stacked bars showing Q1–Q4 publications per role.          |
+| **Citation Count by Role & Quartile**   | Stacked bars of citations per role, segmented by quartile. |
+| **Citation Distribution (Violin Plot)** | Violin plots (log scale) for citation spread across roles. |
+| **Authorship % Contribution**           | 100% stacked bar of publication shares per role.           |
+| **Citation % Contribution**             | 100% stacked bar of citation shares per role.              |
+| **Time-Series (Last 10 Years)**         | Bar/line chart of annual publication counts.               |
+| **Retraction Flags**                    | Markers or exclusions for confirmed retracted papers.      |
+
+---
+
+## 🔧 Installation
+
+1. **Chrome**: Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gscholarlens/lgbaopmimcnpphepmfphadncdofnojnd).
 2. **Firefox**: Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/gscholarlens/)​.
 
 ---
 
-## 📂 Usage  
+## 📂 Usage
 
-1. Navigate to a Google Scholar profile.  
-2. Click **Run GScholarLENS** below the profile header.  
-3. Wait for scraping and visualization (progress bar indicates status).  
-4. Explore charts and summary metrics.  
+1. Navigate to a Google Scholar profile.
+2. Click **Run GScholarLENS** below the profile header.
+3. Wait for scraping and visualization (progress bar indicates status).
+4. Explore charts and summary metrics.
 5. Click **Download Publications** to export a TSV report​.
 
 ---
 
-## ⚙️ Technical Details  
+## ⚙️ Technical Details
 
 - **Language & APIs**: JavaScript, Chrome/Firefox Extensions API.
 - **Charting**: [Chart.js](https://www.chartjs.org) and violin/boxplot plugin.
-- **Data Storage**: Local JSON/TSV for journal quartiles; session caching for fetch requests.  
-- **Concurrency Control**: Semaphore ensures one-profile-at-a-time scraping.  
+- **Data Storage**: Local JSON/TSV for journal quartiles; session caching for fetch requests.
+- **Concurrency Control**: Semaphore ensures one-profile-at-a-time scraping.
 
 ---
 
-## 🤝 Contributing  
+## 🤝 Contributing
 
 Contributions welcome! Please:
 
-1. Fork the repo  
-2. Create a feature branch: `git checkout -b feature/YourFeature`  
-3. Commit with clear messages  
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/YourFeature`
+3. Commit with clear messages
 4. Open a Pull Request for review
-   
+
 ---
 
 ## 🔮 Future Work
 
-- **Multi-source Profiles**: combine Scopus, Web of Science, arXiv  
-- **Co-author Network Graphs**  
-- **Customizable Weighting** for roles & quartiles  
-- **Adaptive Temporal Weighting** to emphasize recent work  
+- **Multi-source Profiles**: combine Scopus, Web of Science, arXiv
+- **Co-author Network Graphs**
+- **Customizable Weighting** for roles & quartiles
+- **Adaptive Temporal Weighting** to emphasize recent work
 
 ---
 
@@ -130,10 +137,9 @@ This project is released under the **MIT License**
 – **Lab Page**: <https://sites.google.com/view/sharmaglab/Home>  
 – **Project Page**: <http://project.iith.ac.in/sharmaglab/gscholarlens/>  
 – **Other Tools**: <http://project.iith.ac.in/sharmaglab/>  
-– **Repo Issues**: Please file bugs or feature requests under [Issues](https://github.com/yourusername/gscholarlens/issues).  
+– **Repo Issues**: Please file bugs or feature requests under [Issues](https://github.com/yourusername/gscholarlens/issues).
 
-Thank you for using GScholarLENS!  
-
+Thank you for using GScholarLENS!
 
 <p align="center">
   <img src="https://project.iith.ac.in/sharmaglab/gscholarlens/images/lab_logo.png" alt="SharmaG Omics Lab Logo" width="100" />
