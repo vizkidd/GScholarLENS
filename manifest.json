@@ -255,7 +255,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "scholarlens@sharmag.bt.iith.ac.in",
-      "strict_min_version": "138.0.1"
+      "strict_min_version": "109.0"
     },
     "gecko_android": {},
     "chrome": {
