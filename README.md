@@ -81,7 +81,7 @@ GScholarLENS synchronizes with Google Scholar to:
 
 ## 🔧 Installation
 
-1. **Chrome**: Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gscholarlens/lgbaopmimcnpphepmfphadncdofnojnd).
+1. **Chrome**: Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gscholarlens/gscholarlens/lgbaopmimcnpphepmfphadncdofnojnd).
 2. **Firefox**: Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/gscholarlens/)​.
 
 ---
