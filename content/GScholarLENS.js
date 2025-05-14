@@ -8,6 +8,7 @@ let profileScraped = false;
 let isDesktop = false;
 let isPermitted = false;
 let isInitialized = false;
+
 // Create TSV content
 let tsvContent = "Index\tTitle\tAuthors\tTotal_Authors\tYear\tCitations\tAdjusted_Citations\tAdjusment_Weight\tJournal\tQ*\tImpactFactor_5years\tPublication_Considered\tFirst_Author\tSecond_Author\tCo_Author\tCorresponding_Author\n"; // Header row
 
@@ -751,18 +752,20 @@ function startScraping() {
     try {
         const startTime = performance.now();
         // Listen for visibility change events
-        document.addEventListener('visibilitychange', () => {
+        document.addEventListener('visibilitychange', async () => {
             if (document.visibilityState === 'visible' && profileScraped === true) {
                 // draw10yearsChart();
                 updateAuthorChart();
+                // updatePublicationElementsHTML();
             }
         });
 
         // Additionally, listen for window focus events
-        window.addEventListener('focus', () => {
+        window.addEventListener('focus', async () => {
             if (profileScraped === true) {
                 // draw10yearsChart();
                 updateAuthorChart();
+                // updatePublicationElementsHTML();
             }
         });
 
@@ -1066,6 +1069,19 @@ function startScraping() {
 
         }
 
+        async function removeLoadingBar(loadingBarID) {
+            const progress_text = document.getElementById(loadingBarID + "_text");
+            const progress_bar = document.getElementById(loadingBarID + "_bar");
+            progress_bar.style.display = "none";
+            progress_text.style.display = "none";
+            if (progress_text) {
+                progress_text.remove();
+            }
+            if (progress_bar) {
+                progress_bar.remove();
+            }
+        }
+
         async function updateLoadingBarCall(loadingBarID = "main", progress, loadingBarText = "Progress: ") {
             // if (progress % totalPublications) {
             //     setTimeout(updateLoadingBar, 20, progress, loadingBarText);
@@ -1089,12 +1105,12 @@ function startScraping() {
                 else
                     progress_text.textContent = loadingBarText;
 
-                if (progress >= 100) {
-                    await new Promise(r => setTimeout(r, 1000));  // delete loading bar after few (?)seconds
-                    // progress_text.remove();
-                    // progress_bar.remove();
-                    // loadingBarMaps.delete(loadingBarID);
-                }
+                // if (progress >= 100) {
+                //     await new Promise(r => setTimeout(r, 1000));  // delete loading bar after few (?)seconds
+                //     // progress_text.remove();
+                //     // progress_bar.remove();
+                //     // loadingBarMaps.delete(loadingBarID);
+                // }
             }
         
             // loadingBar.style.width = progress.toFixed(2) + "%";
@@ -1106,8 +1122,6 @@ function startScraping() {
 
         // Get the profile section to append the chart and progress bars
         const profileSection = document.querySelector('#gsc_prf_w');
-        // Append the loading bar container to the body or a specific container
-        profileSection.appendChild(loadingBarContainer);
 
         // Creating chart containers first to update them later
         const chartMainContainer = document.createElement("div");
@@ -1115,6 +1129,9 @@ function startScraping() {
         chartMainContainer.style.display = "none";
         // Append the chart container to the profile section
         profileSection.appendChild(chartMainContainer);
+
+        // Append the loading bar container to the body or a specific container
+        profileSection.appendChild(loadingBarContainer);
 
         function updateDoubleRangeMin(value = -1) {
             const doubleRangeInputs = document.querySelectorAll(".double_range_slider_box input");
@@ -1905,6 +1922,15 @@ input::-moz-range-thumb {
             doubleRangeInputs.forEach((input) => {
                 input.addEventListener("change", updateAuthorChart);
             });
+
+            // To update publication HTML elements upon any input - when slide is moved
+            peryearCheckbox.addEventListener("change", updatePublicationElementsHTML);
+            cumulativeCheckbox.addEventListener("change", updatePublicationElementsHTML);
+            singleRangeInput.addEventListener("change", updatePublicationElementsHTML);
+            doubleRangeInputs.forEach((input) => {
+                input.addEventListener("change", updatePublicationElementsHTML);
+            });
+            
         }
 
         initializeScholarLens();
@@ -1959,6 +1985,14 @@ input::-moz-range-thumb {
 
         // Append the download button to the profile section
         profileSection.appendChild(downloadPlotsButton);
+
+        // const displayedPubsElement = document.createElement("span")
+        // displayedPubsElement.id = "displayed_pubs";
+        // displayedPubsElement.style.fontFamily = 'schibsted-grotesk, sans-serif'; // Apply the font
+        // displayedPubsElement.style.marginTop = "10px";
+        // displayedPubsElement.style.marginRight = "10px";
+        // displayedPubsElement.textContent = "TOTAL PUBS";
+        // profileSection.appendChild(displayedPubsElement);
 
         downloadPlotsButton.addEventListener("click", function () {
             // Trigger download of the TSV file
@@ -3336,6 +3370,36 @@ input::-moz-range-thumb {
 
         }
 
+        async function updatePublicationElementsHTML() {
+            // mutex_lock = true;
+            loadingBarContainer.style.display = "block";
+            const publicationElements = document.querySelectorAll('.gsc_a_tr');
+            const plottingMinYear = selectedPeryearCheck ? selectedCumulativeCheck ? minYear : selectedSingleYear : selectedMinYear;[]
+            const plottingMaxYear = selectedPeryearCheck ? selectedSingleYear : selectedMaxYear;  
+            // publicationElements.forEach((element, index) => {      
+            for(const [index, element] of publicationElements.entries()) {
+                const yearElement = element.querySelector('.gsc_a_y span');
+                const yearString = yearElement ? yearElement.textContent.trim() : "";
+                const yearInt = yearString.length > 0 ? parseInt(yearString) : 0;
+                // console.log(yearInt, yearString, yearElement.textContent.trim(),  yearString.length); //DEBUG
+                if(yearInt === 0 || yearInt >= plottingMinYear && yearInt <= plottingMaxYear) {
+                    element.style.display = "table-row";
+                }else{
+                    element.style.display = "none";
+                }
+                updateLoadingBar("publication_cards", (index / publicationElements.length) * 100, "Selecting Publications (" + index + "): ");
+                await new Promise(r => setTimeout(r, 0));  // Wait for a frame to redraw the DOM and give breathing space to the main thread
+            }
+            // loadingBarMaps.forEach((value, key) => {
+            //     if (key === "publication_cards") {
+            //         removeLoadingBar(key);
+            //     }
+            // });
+            // loadingBarMaps.delete("publication_cards");
+            loadingBarContainer.style.display = "none";
+            // mutex_lock = false;
+        }
+
         // Main scraping function for publications, citations, year, and authors
         const scrapePublications = async () => {
             document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
@@ -3442,7 +3506,7 @@ input::-moz-range-thumb {
 
                 const yearElement = element.querySelector('.gsc_a_y span');
                 const year = yearElement ? yearElement.textContent.trim() : "No year";
-
+                element.year = year != "No year" || year != undefined ? parseInt(year) : 0;
                 const articleLinkElement = element.querySelector('.gs_ibl');
                 const articleLinkGS = articleLinkElement ? articleLinkElement.hasAttribute("href") ? articleLinkElement.getAttribute("href") : null : null;
 
@@ -4844,16 +4908,24 @@ input::-moz-range-thumb {
                     const retractionWorker = retWorkerPool.find(w => w.idle);
                     retractionWorker.idle = false;
                 
-                    retractionWorker.onmessage   = async ({ data }) => {
+                    retractionWorker.onmessage   = async ({ data:buffer }) => {
+                        const decoder = new TextDecoder('utf-8');
+                            const json    = decoder.decode(new Uint8Array(buffer));
+                            // console.log(json); //DEBUG
+                            // 3) Parse JSON back into your plain object/array form
+                            const data   = JSON.parse(json);
                           if (data.task === 'checkRetraction' && data.type === 'working'){
                               retractionProgress += 1;
                               updateLoadingBar("retract_progress",(retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): ");
                               // console.log(retractionProgress, totalPublications, (retractionProgress / totalPublications) * 100); //DEBUG
                               // setTimeout(updateLoadingBar, 10, (retractionProgress / totalPublications) * 100, "Processing Retractions (" + retractionProgress + "): "); 
                               await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
-                              if(data.isPubRetracted) {
-                                  retractedPubsIdxList.push(data.publication.index);
-                                  retractedPubsCount++;
+                              if(data.publication.retracted) {
+                                publicationData[data.publication.index].retracted = true;
+                                retractedPubsIdxList.push(data.publication.index);
+                                retractedPubsCount++;
+                              }else{
+                                publicationData[data.publication.index].retracted = false;
                               }
                           }
                           if (data.type === 'done') {
@@ -4985,6 +5057,7 @@ input::-moz-range-thumb {
             publicationElements.forEach(async (element, index) => {
                 // Other code extracting title, citations, etc.
                 const authorPosition = publicationData[index].author_pos; //publicationAuthorPositions.get(index); //getAuthorPositionForCurrentPublication(index);
+                element.author_pos = authorPosition;
                 // if (authorPosition != "NA") {
                 // console.log(index, "Author Position:", authorPosition, publicationData[index].title, element.querySelector('.gsc_a_t a')); // DEBUG
                 const gsGrayElement = element.querySelector('.gs_gray');
@@ -5007,23 +5080,42 @@ input::-moz-range-thumb {
                     //                 <span style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "corresponding_author" ? '#3a83b2' : '#ddd'};"></span>
                     //             </div>
                     //         `);
+                    let badgeColor = "#ddd";
+                    if(!retractedPubsIdxList.includes(index)){
+                        switch (authorPosition) {
+                            case "first_author":
+                                badgeColor = "#3b8888";
+                                break;
+                            case "second_author":
+                                badgeColor = "#5d33b8";
+                                break;
+                            case "co_author":
+                                badgeColor = "#e68a41";
+                                break;
+                            case "corresponding_author":
+                                badgeColor = "#3a83b2";
+                                break;
+                            default:
+                                badgeColor = "#ddd";
+                        }
+                    }
                     const positionCirclesHTML = DOMPurify.sanitize(`
                         <div class="position-circles" style="display: flex; gap: 5px; margin-top: 2px; margin-left: 2px; align-items: center; position: relative;">
                             <div class="circles-container" style="display: flex; gap: 5px; margin-right: 0.30%; margin-left: 0.15%;">
         <span 
-            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "first_author" ? '#3b8888' : '#ddd'};"
+            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "first_author" ? badgeColor : "#ddd"};"
             ${authorPosition === "first_author" ? 'data-role="First Author"' : ''}
         ></span>
         <span 
-            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "second_author" ? '#5d33b8' : '#ddd'};"
+            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "second_author" ? badgeColor : "#ddd"};"
             ${authorPosition === "second_author" ? 'data-role="Second Author"' : ''}
         ></span>
         <span 
-            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "co_author" ? '#e68a41' : '#ddd'};"
+            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "co_author" ? badgeColor : "#ddd"};"
             ${authorPosition === "co_author" ? 'data-role="Co-Author"' : ''}
         ></span>
         <span 
-            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "corresponding_author" ? '#3a83b2' : '#ddd'};"
+            style="width: 10px; height: 10px; border-radius: 50%; background-color: ${authorPosition === "corresponding_author" ? badgeColor : "#ddd"};"
             ${authorPosition === "corresponding_author" ? 'data-role="Corresponding Author"' : ''}
         ></span>
                             </div>
@@ -5094,8 +5186,10 @@ input::-moz-range-thumb {
 
             publicationElements.forEach(async (element, index) => {
                 if (!retractedPubsIdxList.includes(index)) {
+                    element.retracted = false;
                     return;
                 }
+                element.retracted = true;
                 const gsGrayElement = element.querySelector('.gs_gray');
                 const retractionHTML = DOMPurify.sanitize(`
                 <div class="blink_text"><div class="retraction-notice" style="margin-top: 5px; color: #ff0000; font-weight: bold;">
@@ -5446,6 +5540,14 @@ input::-moz-range-thumb {
             //     const chartPluginPath = chrome.runtime.getURL('libs/chartjs-plugin-annotation.min.js');
             //     loadScript(chartPluginPath, draw10yearsChart, "chartjs_plugin_script");
             // }
+
+            //Remove progress bars
+            loadingBarMaps.forEach((bar, key) => {
+                removeLoadingBar(key);
+            });
+            loadingBarMaps.clear();
+            loadingBarMaps.set("publication_cards", createLoadingBar("publication_cards", loadingBarMaps.size + 1, "Selecting Publications...", "rgb(103, 0, 172)"));
+
             if(isDesktop)
                 loadScript(chartPath, draw10yearsChart, "chartjs_script_decade");
             // loadScriptURL("https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js", draw10yearsChart, "chartjs_script_decade");
