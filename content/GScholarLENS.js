@@ -3519,12 +3519,12 @@ input::-moz-range-thumb {
                 const publicationUrl = publicationTitleElement ? publicationTitleElement.href : null;
 
                 let citationCountElement = element.querySelector('.gsc_a_c a');
-                citationCountElement = citationCountElement ? citationCountElement.textContent.trim() : "0";
-                let citationCount = parseInt(citationCountElement);
+                const citationCountElementString = citationCountElement ? citationCountElement.textContent.trim() : "0";
+                let citationCount = parseInt(citationCountElementString, 0);
                 if (isNaN(citationCount)) {
                     citationCount = 0;
                 }
-
+                // console.log(citationCount); //DEBUG
                 const grayElements = element.querySelectorAll('.gsc_a_t .gs_gray');
 
                 const spanElement = element.querySelector('.gs_oph');
@@ -4742,7 +4742,7 @@ input::-moz-range-thumb {
             // });
 
             const adjustedCitations = [];
-            const rawCitations = [];
+            // const rawCitations = [];
             // NONE OF THE DATAFRAME JS packages work due to unsafe eval() or Function() calls :( which is intolerated by CSP
 
             // console.log(yearwiseData); //DEBUG
@@ -4756,7 +4756,8 @@ input::-moz-range-thumb {
             //     );
             // }
             //this prevents randomness - dont ask my how but that is how it is
-            publicationData.sort((a, b) => b.adjustedCitationCount - a.adjustedCitationCount); // Sort publications in descending
+            // publicationData.sort((a, b) => b.adjustedCitationCount - a.adjustedCitationCount); // Sort publications in descending
+            publicationData.sort((a, b) => b.citations - a.citations); // Sort publications in descending
 
             // const subsets = new Map();
             filterColumns.forEach((column, index) => {
@@ -4788,7 +4789,7 @@ input::-moz-range-thumb {
                         const rowCites = row.adjustedCitationCount;
                         adjustedCitations.push(rowCites);
                         // // rawCitations.push(parseInt(row["Citations"]));
-                        rawCitations.push(row.citations);
+                        // rawCitations.push(row.citations);
                         // if citations is atleast the count of papers, increment the h-index of that authorPos
                         // console.log(rowCites); //DEBUG
                         if (rowCites >= subsetItersArr[authorshipColumn]) {
@@ -4858,7 +4859,7 @@ input::-moz-range-thumb {
             // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
 
             adjustedCitations.sort((a, b) => b - a); // Sort in descending order
-            rawCitations.sort((a, b) => b - a); // Sort in descending order
+            // rawCitations.sort((a, b) => b - a); // Sort in descending order
 
             // console.log(adjustedCitations); //DEBUG
             // console.log(rawCitations); //DEBUG
@@ -4880,13 +4881,15 @@ input::-moz-range-thumb {
                     shIndex = index + 1;
                 }
             });
-            rawCitations.forEach((pub, index) => {
-                if(pub.citations <= 0)
-                    zeroCitationPubs++;
-            });
+            // rawCitations.forEach((pub, index) => {
+            //     if(pub.citations <= 0)
+            //         zeroCitationPubs++;
+            // });
+
+            zeroCitationPubs = publicationData.filter(pub => pub.citations <= 0 && !pub.retracted).length;
 
             medianCitationsAdj = adjustedCitations[Math.floor(adjustedCitations.length / 2)];
-            medianCitationsRaw = rawCitations[Math.floor(rawCitations.length / 2)];
+            medianCitationsRaw = publicationData[Math.floor(publicationData.length / 2)].citations;
 
             // console.log(shIndex); //DEBUG
             document.getElementById("sh_index").textContent = DOMPurify.sanitize(`Sh-Index : ${shIndex.toFixed(0)}`);
