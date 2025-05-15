@@ -93,7 +93,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "libs/papaparse.min.js",
         "libs/chart.umd.js",
         "libs/index.umd.js",
         "libs/chart.js",
@@ -238,7 +237,6 @@
         "*://scholar.google.sk/citations*"
       ],
       "js": [
-        "libs/papaparse.min.js",
         "libs/xlsx.full.min.js",
         "libs/chart.umd.js",
         "libs/index.umd.js",

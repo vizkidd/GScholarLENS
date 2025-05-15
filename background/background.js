@@ -17,6 +17,8 @@
 // await chrome.storage.local.set({ "csp_hash_map": csp_hash_map });
 
 // background.js
+const semaphore_queue = [];
+let processing_tab = null;
 
 (async function () {
     // if (!runtime) {
@@ -222,15 +224,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // console.log("Received message:", request.type); //DEBUG
     if (request.type === 'get_semaphore') {
         (async () => {
+            // semaphore_queue.push(sender.tab.id);  // Add the tab ID to the queue    
+            // while (true) {
+            //     const tabId = sender.tab.id;
+            //     // Check if this tab is still at the front of the queue
+            //     const isFirstInQueue = (tabId === semaphore_queue[0]);
+            //     // Check if the tab is still active (exists and not discarded/closed)
+            //     try {
+            //         const tab = await chrome.tabs.get(tabId);
+            //         const isStillActive = tab.active && !tab.discarded; // optional: check tab.status === "complete"
+
+            //         if (!isStillActive) {
+            //             // Remove the tab if it's not active anymore
+            //             const index = semaphore_queue.indexOf(tabId);
+            //             if (index !== -1) semaphore_queue.splice(index, 1);
+            //             return; // Exit early, this tab is no longer eligible
+            //         }
+
+            //         if (isFirstInQueue && isStillActive) {
+            //             // Proceed only if it's this tab's turn
+            //             break;
+            //         }
+
+            //     } catch (err) {
+            //         // Tab probably no longer exists (e.g. closed)
+            //         const index = semaphore_queue.indexOf(tabId);
+            //         if (index !== -1) semaphore_queue.splice(index, 1);
+            //         return; // Exit the loop, nothing more to do
+            //     }
+
+            //     // Wait a bit before checking again
+            //     await new Promise(resolve => setTimeout(resolve, 1000 * Math.max(semaphore_queue.length - 1, 1)));
+            // }
+            
+            while(await getSemaphoreStatus()) {
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));  // Wait for some ms
+            }
             await waitForSemaphore();  // Wait for semaphore to be free
             // await new Promise(resolve => setTimeout(resolve, 4000));  // Wait for 4 seconds
             await getSemaphore();
+            processing_tab = sender.tab.id; //semaphore_queue.shift();  // Remove the first tab ID from the queue
             sendResponse({ status: 'Semaphore acquired' });
         })();
     } else if (request.type === 'release_semaphore') {
         (async () => {
-            await releaseSemaphore();
-            sendResponse({ status: 'Semaphore released' });
+            if(processing_tab && processing_tab === sender.tab.id){
+                await releaseSemaphore();
+                processing_tab = null;  // Clear the processing tab
+                sendResponse({ status: 'Semaphore released' });
+            }
         })();
     } else if (request.type === 'wait_for_initialization') {
         (async () => {
