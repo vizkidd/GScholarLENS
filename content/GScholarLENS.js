@@ -788,6 +788,7 @@ function startScraping() {
         let selectedMaxYear = 0;
         let selectedSingleYear = 0;
 
+        let retractionProgress = 0;
         let publicationProgress = 0;
         let totalPublications = 0; //document.querySelectorAll(".gsc_a_at").length;
         let pub_author_no_match = 0;
@@ -805,7 +806,9 @@ function startScraping() {
         let zeroCitationPubs = 0;
         let retractedPubsCount = 0;
         let preprintCount = 0;
+        // let pubsConsidered = 0; // totalPublications - (pub_author_no_match + retractedPubsCount);
 
+        const filterColumns = ['First_Author', 'Second_Author', 'Co_Author', 'Corresponding_Author'];
         const hCiteProp = [0.9, 0.5, 0.1, 1.0];
         // const hFirstProp = 0.9;
         // const hSecondProp = 0.5;
@@ -906,10 +909,37 @@ function startScraping() {
         // const jandasPath = chrome.runtime.getURL('libs/jandas.min.js');
         // const allURLs = [];
         const publicationData = [];
+        const retractedPubsIdxList = [];
         let authorNamesConsidered = [];
 
         const yearwiseData = new Map();
         const yearList = [];
+
+        const cats = [
+            "≽^•⩊•^≼",
+            "ฅ^•ﻌ•^ฅ",
+            "ᓚ₍ ^. ̫ .^₎",
+            "ᓚ₍ ^. .^₎",
+            "—ฅ/ᐠ. ̫ .ᐟ\\ฅ —",
+            "₍^. .^₎⟆",
+            "ฅᨐฅ",
+            "ㅤ/ᐠ - ˕ -マ",
+            "*ฅ^•ﻌ•^ฅ*",
+            "₍^. .^₎⟆",
+            "ᓚᘏᗢ",
+            "ᓚ₍ ^. ༝ .^₎",
+            "₍^.  ̫.^₎",
+            "₍^. ̫.^₎",
+            "ᓚᘏᗢ ᗢᘏᓗ",
+            "/ᐠ. ｡.ᐟ\\ᵐᵉᵒʷˎˊ˗",
+            "/ᐠ. .ᐟ\\ Ⳋ",
+            "ᓚᘏᗢ ᵐᵉᵒʷ",
+            "/ᐠ. .ᐟ\\",
+            "/ᐠ - ˕ -マ Ⳋ",
+            "=^..^=",
+            "₍⑅ᐢ..ᐢ₎",
+            "૮₍ ˶ᵔ ᵕ ᵔ˶ ₎ა"
+          ];
 
         // const author_pos_contrib = new Map();
         // author_pos_contrib.set("first_author", 0);
@@ -1082,12 +1112,16 @@ function startScraping() {
             }
         }
 
+        let prevCatString = "";
         async function updateLoadingBarCall(loadingBarID = "main", progress, loadingBarText = "Progress: ") {
             // if (progress % totalPublications) {
             //     setTimeout(updateLoadingBar, 20, progress, loadingBarText);
             // }
 
-            
+            let currentCatString = prevCatString;
+            if(Math.floor(progress) % 10 === 0 || Math.floor(progress) % 10 === 5) {
+               currentCatString = cats[Math.floor(Math.random() * cats.length)];
+            }
             const parentContainer = loadingBarMaps.get(loadingBarID);
             if (parentContainer) {       
                 const progress_text = document.getElementById(loadingBarID + "_text");
@@ -1100,7 +1134,7 @@ function startScraping() {
                 if(progress >=0){
                     progress_bar.style.width = 
                     progress_bar.style.width = `calc(${progress.toFixed(2)}% - ${totalMarginPx}px)`; //${progress.toFixed(2)} + "%"
-                    progress_text.textContent = loadingBarText + `${progress.toFixed(2)}%`;
+                    progress_text.textContent = loadingBarText + `${progress.toFixed(2)}% ` + currentCatString;
                 }
                 else
                     progress_text.textContent = loadingBarText;
@@ -1111,6 +1145,7 @@ function startScraping() {
                 //     // progress_bar.remove();
                 //     // loadingBarMaps.delete(loadingBarID);
                 // }
+                prevCatString = currentCatString;
             }
         
             // loadingBar.style.width = progress.toFixed(2) + "%";
@@ -1656,7 +1691,7 @@ input::-moz-range-thumb {
             // {"firstRowCellsStyles":[{"borderTopLeftRadius":"10px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"10px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"}],"lastRowCellsStyles":[{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"10px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"0px"},{"borderTopLeftRadius":"0px","borderTopRightRadius":"0px","borderBottomLeftRadius":"0px","borderBottomRightRadius":"10px"}]}
 
             //                                <h4 id="sh_index_info">(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications</h4> 
-
+            
             const chartContainer = document.querySelector('#chart-viz');
             chartContainer.style.marginTop = "50px";
             chartContainer.innerHTML = DOMPurify.sanitize(`
@@ -1703,7 +1738,7 @@ input::-moz-range-thumb {
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Publications Considered:</b></th>
-                                                <td id="considered_pubs" style="text-align: center;">${totalPublications - (pub_author_no_match )}</td>
+                                                <td id="considered_pubs" style="text-align: center;">${totalPublications - (pub_author_no_match + retractedPubsCount)}</td>
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Publications Not Counted:</b></th>
@@ -2019,7 +2054,7 @@ input::-moz-range-thumb {
             }
 
             const dom2imagePath = chrome.runtime.getURL("libs/dom-to-image-more.min.js");
-            loadScript(dom2imagePath, capturePlots, "dom2image_script");
+            loadScript(dom2imagePath, capturePlots, "captureplots_script");
         });
 
 
@@ -3214,7 +3249,7 @@ input::-moz-range-thumb {
                 const consideredAuthorNamesElement = document.getElementById("using_author_names");
 
                 totalPubsElement.textContent = DOMPurify.sanitize(`${totalPublications.toString()}`);
-                consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match)}`);
+                consideredPubsElement.textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match + retractedPubsCount)}`);
                 ignoredPubsElement.textContent = DOMPurify.sanitize(`${pub_author_no_match}`);
                 consideredAuthorNamesElement.textContent = DOMPurify.sanitize(`${authorNamesConsidered.toString()}`);
 
@@ -3387,7 +3422,8 @@ input::-moz-range-thumb {
                 }else{
                     element.style.display = "none";
                 }
-                updateLoadingBar("publication_cards", (index / publicationElements.length) * 100, "Selecting Publications (" + index + "): ");
+                let loadingString = "Selecting Publications (" + index + "): "
+                updateLoadingBar("publication_cards", (index / publicationElements.length) * 100, loadingString);
                 await new Promise(r => setTimeout(r, 0));  // Wait for a frame to redraw the DOM and give breathing space to the main thread
             }
             // loadingBarMaps.forEach((value, key) => {
@@ -4034,8 +4070,6 @@ input::-moz-range-thumb {
             //     return regexRes.some(x => x === true);
             // }
 
-            const retractedPubsIdxList = [];
-            let retractionProgress = 0;
             // let activeWorkers = 0;
 
             // function scheduleTask(workerPool, taskQueue, callback, message) {
@@ -5223,17 +5257,7 @@ input::-moz-range-thumb {
                 }
             }
 
-            // // Function to adds all entries of the source map to the target map
-            // function addEntries(source, target) {
-            //     // Loop over the entries of the source map
-            //     for (let [key, value] of source.entries()) {
-            //         // Add or update the entry to the target map
-            //         target.set(key, value);
-            //     }
-            // }
-
             // Note: in some cases, certain publications would not have year and it would be stored in the yearwiseData map as "" (empty string). We will have to move these to the most recent year to account for the metrics
-
             let emptyKeyData = yearwiseData.get("");
             // console.log(emptyKeyData); //DEBUG
             // console.log(yearwiseData); //DEBUG
@@ -5255,281 +5279,6 @@ input::-moz-range-thumb {
                 yearwiseData.delete("");
             }
 
-            let parsedData;
-            async function parseTSV() {
-                parsedData = Papa.parse(tsvContent, {
-                    delimiter: '\t',
-                    header: true
-                });
-                // await loadScript(jandasPath, calculateShIndex);
-                calculateShIndex();
-            }
-            // Iterate through CSV data and calculate Sh-Index
-            async function calculateShIndex() {
-                // const tsv_blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
-                const adjustedCitations = [];
-                const rawCitations = [];
-                // //iterate through tsv blob and fetch the citations columns for each author position
-                // let headerLine = true;
-                // tsv_blob.split('\n').forEach(line => {
-                //     if(headerLine){
-                //         headerLine = false;
-                //         return;
-                //     }
-
-                //     const columns = line.split('\t');
-                //     const authorPos = columns[0]; // Assuming the first column is the author position
-                //     const citation = columns[1]; // Assuming the second column is the citation
-
-                //     citations.push({ authorPos, citation });
-                // });
-
-                // const hIndexMap = new Map();
-                // hIndexMap.set("h_first", 0);  //first author
-                // hIndexMap.set("h_second",0); //second author
-                // hIndexMap.set("h_other", 0); //co-author
-                // hIndexMap.set("h_co",0); //corresponding
-
-                // const hIndexArr = new Array(4).fill(0);
-                // const hIndexArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-                // const hIndexMinCiteArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-                // const subsetItersArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-                // // const subsetRowCountsArr = [0, 0, 0, 0]; // [first author, second author, co-author, corresponding author]
-
-                // console.log(parsedData.data); //DEBUG
-
-                // NONE OF THE DATAFRAME JS packages work due to unsafe eval() or Function() calls :( which is intolerated by CSP
-                //     // Convert the parsed data to a DataFrame
-                //     const df = new jandas.DataFrame(parsedData.data);
-                //     console.log(df); //DEBUG
-                const filterColumns = ['First_Author', 'Second_Author', 'Co_Author', 'Corresponding_Author'];
-
-                //     const sortedDf = df.sort_values(['Citations'], false); //.sort_values(filterColumns, false); // true for ascending order
-
-                //     console.log(sortedDf); //DEBUG
-                //     // Take subsets based on the filter columns being 1
-                // //     const subsets = filterColumns.map((column_idx, column) => {
-                // //         const subset_df = [];
-                // //         sortedDf.iterrows((row, key, i) => {
-                // //             // console.log(row.values, key);
-                // //             // console.log(row); //DEBUG
-                // //             // console.log(sortedDf.iloc([row_idx, column_idx]).values); //DEBUG
-                // //             if (sortedDf.iloc([i, column_idx]).values === 1) {
-                // //                 subset_df.push(row);
-                // //             }
-                // //         });
-                // //         return subset_df;
-                // // });
-                //     shIndexPubCount = sortedDf.shape[0] - 1; // -1 for header
-
-                //     const subsets = sortedDf.groupby(filterColumns).then((gp,k,i)=>{
-                //         // if (row.get(column) === 1) {
-                //         //             const rowCites = parseInt(row.get('Citations'));
-                //         //             // if citations is atleast the count of papers, increment the h-index of that authorPos
-                //         //             if (rowCites >= subsetItersArr[subset_idx]) {
-                //         //                 hIndexArr[column_idx]++;
-                //         //             }
-                //         //         } else {
-                //         //             return;
-                //         //         }
-                //         // console.log(gp,k,i); //DEBUG
-                //         // console.log(k.indexOf('1'));//DEBUG
-                //         const authorshipColumn = k.indexOf('1');
-                //         if (authorshipColumn >= 0) {
-                //             subsetItersArr[authorshipColumn]++;
-                //             gp.iterrows((row, key, j) => {
-                //                 // console.log(row, key, j); //DEBUG
-                //                 // console.log(filterColumns[authorshipColumn]); //DEBUG
-                //                 // console.log(row.loc(["Citations"]).values); //DEBUG
-                //                 // console.log(parseInt(row.loc(filterColumns[authorshipColumn]).values)); //DEBUG
-                //                 // if (parseInt(row.loc(filterColumns[authorshipColumn]).values) === 1) {
-                //                     const rowCites = parseInt(row.loc(["Citations"]).values);
-                //                     // if citations is atleast the count of papers, increment the h-index of that authorPos
-                //                     // console.log(rowCites); //DEBUG
-                //                     if (rowCites >= subsetItersArr[authorshipColumn]) {
-                //                         hIndexArr[authorshipColumn]++;
-                //                         // shIndexPubCount++;
-                //                     }
-                //                 // }
-                //             })
-                //         }
-                //     });
-
-
-                //     // console.log(subsets); //DEBUG
-                //     // // Iterate through the sorted DataFrame and fetch the citations columns for each author position
-                //     // sortedDf.map(row => {
-                //     //     const authorPos = row.get('authorPos'); // Assuming the first column is the author position
-                //     //     const citation = row.get('citation'); // Assuming the second column is the citation
-                //     //     citations.push({ authorPos, citation });
-                //     // });
-
-
-                //     // Function to process each subset
-                //     // const processSubset = async (subset, filterColumns) => {
-                //     //     subset.map((subset_idx, row) => {
-                //     //         subsetItersArr[subset_idx]++;
-                //     //         // get row count of this subset
-                //     //         // subsetRowCountsArr[subset_idx] = subset.count();
-                //     //         // Find out which filtering column has a value of 1
-                //     //         filterColumns.forEach((column_idx, column) => {
-                //     //             if (row.get(column) === 1) {
-                //     //                 const rowCites = parseInt(row.get('Citations'));
-                //     //                 // if citations is atleast the count of papers, increment the h-index of that authorPos
-                //     //                 if (rowCites >= subsetItersArr[subset_idx]) {
-                //     //                     hIndexArr[column_idx]++;
-                //     //                 }
-                //     //             } else {
-                //     //                 return;
-                //     //             }
-                //     //         });
-
-
-                //     //     });
-                //     // };
-
-                //     // // Iterate through the subsets in parallel
-                //     // const results = await Promise.all(subsets.map(subset => processSubset(subset, filterColumns)));
-
-                shIndexPubCount = parsedData.data.length - 1; // -1 for header
-                function subsetJSONData(data, filterColumn) {
-                    return data.filter(row =>
-                        parseInt(row[filterColumn]) === 1
-                    );
-                }
-
-                // // Function to sort subsets by 'Citations'
-                // function sortJSONSubsets(subsets, sortColumn) {
-                //     subsets.forEach(subset => {
-                //         subset.sort((a, b) => parseInt(b[sortColumn]) - parseInt(a[sortColumn])); // Descending order
-                //     });
-                // }
-
-                const subsets = new Map();
-                filterColumns.forEach(column => {
-                    subsets.set(column, subsetJSONData(parsedData.data, column));
-                })
-
-                // subsets.forEach((subset, key) => {
-                //     subset.sort((a, b) => parseInt(b['Citations']) - parseInt(a['Citations'])); //Sort in Descending order
-                //     subset.forEach((row, row_key) => { 
-                //         // console.log(row, row_key); //DEBUG
-                //         const authorshipColumn = filterColumns.map((column, index) => {
-                //             return parseInt(row[column]) === 1 ? index : -1; // If 1, return index; else -1
-                //         }).filter(index => index !== -1); // Remove -1 (columns where value isn't 1)
-
-                //         // console.log(authorshipColumn); //DEBUG
-                //         if (authorshipColumn && authorshipColumn >= 0) {
-                //             subsetItersArr[authorshipColumn]++;
-                //             // const rowCites = parseInt(row["Citations"]);
-                //             const rowCites = parseInt(row["Citations"]) * hCiteProp[authorshipColumn]; // Multiply by citation proportion
-                //             adjustedCitations.push(rowCites);
-                //             // if citations is atleast the count of papers, increment the h-index of that authorPos
-                //             // console.log(rowCites); //DEBUG
-                //             if (rowCites >= subsetItersArr[authorshipColumn]) {
-                //                 hIndexArr[authorshipColumn]++;
-                //             }
-                //         }
-                //     });
-                // });
-                // console.log(retractedPubsIdxList); //DEBUG
-                subsets.forEach((subset, key) => {
-                    // subset.sort((a, b) => parseInt(b['Citations']) - parseInt(a['Citations'])); //Sort in Descending order
-                    subset.sort((a, b) => parseInt(b['Adjusted_Citations']) - parseInt(a['Adjusted_Citations'])); //Sort in Descending order
-                    subset.forEach((row, row_key) => {
-                        if (retractedPubsIdxList.includes(parseInt(row['Index']))) {
-                            // console.warn(row, row_key); //DEBUG
-                            return;
-                        }
-                        // console.log(row, row_key); //DEBUG
-                        const authorshipColumn = filterColumns.map((column, index) => {
-                            return parseInt(row[column]) === 1 ? index : -1; // If 1, return index; else -1
-                        }).filter(index => index !== -1); // Remove -1 (columns where value isn't 1)
-
-                        // console.log(authorshipColumn); //DEBUG
-                        if (authorshipColumn && authorshipColumn >= 0) {
-                            subsetItersArr[authorshipColumn]++;
-                            // const rowCites = parseInt(row["Citations"]);
-                            // const rowCites = parseInt(row["Citations"]) * hCiteProp[authorshipColumn]; // Multiply by citation proportion
-                            const rowCites = parseInt(row["Adjusted_Citations"]);
-                            adjustedCitations.push(rowCites);
-                            rawCitations.push(parseInt(row["Citations"]));
-                            // if citations is atleast the count of papers, increment the h-index of that authorPos
-                            // console.log(rowCites); //DEBUG
-                            if (rowCites >= subsetItersArr[authorshipColumn]) {
-                                hIndexArr[authorshipColumn]++;
-                            }
-                        }
-                    });
-                });
-
-                // console.log(subsets); //DEBUG
-
-                hFirst = hIndexArr[0];
-                hSecond = hIndexArr[1];
-                hOther = hIndexArr[2];
-                hCO = hIndexArr[3];
-
-                // console.log(hFirst, hSecond, hOther, hCO); //DEBUG
-
-                // // Calculate shIndex as 90% of hFirst, 50% of hSecond, 10% of hOther, and 100% of hCO
-                // // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
-                // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
-
-                adjustedCitations.sort((a, b) => b - a); // Sort in descending order
-                rawCitations.sort((a, b) => b - a); // Sort in descending order
-
-                adjustedCitations.forEach((citations, index) => {
-                    if (citations >= index + 1) {
-                        shIndex = index + 1;
-                    }
-                });
-
-                rawCitations.forEach((citations, index) => {
-                    if (citations <= 0)
-                        zeroCitationPubs++;
-                });
-
-                medianCitationsAdj = adjustedCitations[Math.floor(adjustedCitations.length / 2)];
-                medianCitationsRaw = rawCitations[Math.floor(rawCitations.length / 2)];
-
-                // console.log(shIndex); //DEBUG
-                document.getElementById("sh_index").textContent = DOMPurify.sanitize(`Sh-Index : ${shIndex.toFixed(0)}`);
-                document.getElementById("h_first").textContent = DOMPurify.sanitize(`${hFirst.toString()}`);
-                document.getElementById("h_second").textContent = DOMPurify.sanitize(`${hSecond.toString()}`);
-                document.getElementById("h_other").textContent = DOMPurify.sanitize(`${hOther.toString()}`);
-                document.getElementById("h_co").textContent = DOMPurify.sanitize(`${hCO.toString()}`);
-
-                document.getElementById("medianCitationsAdj").textContent = DOMPurify.sanitize(`${medianCitationsAdj.toString()}`);
-                document.getElementById("medianCitationsRaw").textContent = DOMPurify.sanitize(`${medianCitationsRaw.toString()}`);
-                document.getElementById("zeroCitationPubs").textContent = DOMPurify.sanitize(`${zeroCitationPubs.toString()}`);
-                document.getElementById("retractedPubsCount").textContent = DOMPurify.sanitize(`${retractedPubsCount.toString()}`);
-                document.getElementById("preprintCount").textContent = DOMPurify.sanitize(`${preprintCount.toString()}`);
-                // document.getElementById("sh_index_info").innerHTML = DOMPurify.sanitize(`(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications`);
-            }
-
-            function blinkText(element_id, interval = 500) {
-                // const text = document.getElementById(element_id);
-                // let isVisible = true;
-
-                // // Toggle visibility every 500ms
-                // setInterval(() => {
-                //     text.style.visibility = isVisible ? "hidden" : "visible";
-                //     isVisible = !isVisible;
-                // }, interval); // Change the interval duration as needed
-                const elements = document.querySelectorAll(`.${element_id}`);
-
-                elements.forEach(async element => {
-                    let isVisible = true;
-                    setInterval(() => {
-                        element.style.visibility = isVisible ? "hidden" : "visible";
-                        isVisible = !isVisible;
-                    }, interval);
-                });
-            }
-
-            loadScript(papaparsePath, parseTSV, "papaparse_script");
-
             // console.log(yearwiseData); //DEBUG
             // console.log(pub_author_no_match); //DEBUG
             // console.log(totalPublications); //DEBUG
@@ -5540,52 +5289,235 @@ input::-moz-range-thumb {
             //     const chartPluginPath = chrome.runtime.getURL('libs/chartjs-plugin-annotation.min.js');
             //     loadScript(chartPluginPath, draw10yearsChart, "chartjs_plugin_script");
             // }
-
-            //Remove progress bars
-            loadingBarMaps.forEach((bar, key) => {
-                removeLoadingBar(key);
-            });
-            loadingBarMaps.clear();
-            loadingBarMaps.set("publication_cards", createLoadingBar("publication_cards", loadingBarMaps.size + 1, "Selecting Publications...", "rgb(103, 0, 172)"));
-
-            if(isDesktop)
-                loadScript(chartPath, draw10yearsChart, "chartjs_script_decade");
-            // loadScriptURL("https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js", draw10yearsChart, "chartjs_script_decade");
-            loadScript(chartPath, updateAuthorChart, "chartjs_script_author");
-            loadingBarContainer.style.display = "none";
-            if (retractedPubsCount > 0) {
-                blinkText("blink_text", 1250);
-            }
+            
             // document.getElementsByTagName('body')[0].style.overflow = 'visible'; //Release the scrollbar
             profileScraped = true;
             (async () => { 
                 await releaseSemaphore();
             })();
-            // uncomment if you want to use popup again
-            // sendResponse({ authorName: authorName, publications: publicationData });
-            const endTime = performance.now();
-            const elapsedMs = endTime - startTime;
 
-            // Break into whole units
-            const hours   = Math.floor(elapsedMs / 3_600_000);
-            const minutes = Math.floor((elapsedMs % 3_600_000) / 60_000);
-            const seconds = ((elapsedMs % 60_000) / 1000).toFixed(2);
-
-            // Build a human-friendly string
-            const parts = [];
-            if (hours   > 0) parts.push(`${hours}h`);
-            if (minutes > 0) parts.push(`${minutes}m`);
-            parts.push(`${seconds}s`);
-
-            console.info(`Time taken by GScholarLENS: ${parts.join(' ')}`);
         }; // scrapePublications - End
+
+        function blinkText(element_id, interval = 500) {
+            const elements = document.querySelectorAll(`.${element_id}`);
+
+            elements.forEach(async element => {
+                let isVisible = true;
+                setInterval(() => {
+                    element.style.visibility = isVisible ? "hidden" : "visible";
+                    isVisible = !isVisible;
+                }, interval);
+            });
+        }
+
+        async function drawPlots() {
+            //Remove progress bars
+            loadingBarMaps.forEach((bar, key) => {
+                removeLoadingBar(key);
+            });
+            loadingBarMaps.clear();
+            loadingBarMaps.set("publication_cards", createLoadingBar("publication_cards", loadingBarMaps.size + 1, "Selecting Publications...", "rgb(255, 255, 255)"));
+
+            if(isDesktop)
+                loadScript(chartPath, draw10yearsChart, "plot_script_decade");
+            // loadScriptURL("https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js", draw10yearsChart, "chartjs_script_decade");
+            loadScript(chartPath, updateAuthorChart, "plot_script_author");
+            loadingBarContainer.style.display = "none";
+            if (retractedPubsCount > 0) {
+                blinkText("blink_text", 1250);
+            }
+        }
+
+                    // Iterate through CSV data and calculate Sh-Index
+        async function calculateShIndex() {
+            while (!profileScraped) {
+                await new Promise(r => setTimeout(r, 100));  // Wait for profileScraped to be true
+            }
+
+            // console.log(yearwiseData); //DEBUG
+            const parsedData = await Papa.parse(tsvContent, {
+                delimiter: '\t',
+                header: true
+            });
+            const adjustedCitations = [];
+            const rawCitations = [];
+            // NONE OF THE DATAFRAME JS packages work due to unsafe eval() or Function() calls :( which is intolerated by CSP
+
+            console.log(yearwiseData); //DEBUG
+            console.log(tsvContent); //DEBUG
+            shIndexPubCount = parsedData.data.length - 1; // -1 for header
+            console.log(shIndexPubCount); //DEBUG
+            function subsetJSONData(data, filterColumn) {
+                return data.filter(row =>
+                    parseInt(row[filterColumn]) === 1
+                );
+            }
+
+            const subsets = new Map();
+            filterColumns.forEach(column => {
+                subsets.set(column, subsetJSONData(parsedData.data, column));
+            })
+
+            subsets.forEach((subset, key) => {
+                console.log(subset); //DEBUG
+                // subset.sort((a, b) => parseInt(b['Citations']) - parseInt(a['Citations'])); //Sort in Descending order
+                subset.sort((a, b) => parseInt(b['Adjusted_Citations']) - parseInt(a['Adjusted_Citations'])); //Sort in Descending order
+                subset.forEach((row, row_key) => {
+                    // console.log(row); //DEBUG
+                    if (retractedPubsIdxList.includes(parseInt(row['Index']))) {
+                        // console.warn(row, row_key); //DEBUG
+                        return;
+                    }
+                    // console.log(row, row_key); //DEBUG
+                    const authorshipColumn = filterColumns.map((column, index) => {
+                        return parseInt(row[column]) === 1 ? index : -1; // If 1, return index; else -1
+                    }).filter(index => index != -1); // Remove -1 (columns where value isn't 1)
+
+                    console.log(authorshipColumn); //DEBUG
+                    if (authorshipColumn && authorshipColumn >= 0) {
+                        subsetItersArr[authorshipColumn]++;
+                        // const rowCites = parseInt(row["Citations"]);
+                        // const rowCites = parseInt(row["Citations"]) * hCiteProp[authorshipColumn]; // Multiply by citation proportion
+                        const rowCites = parseInt(row["Adjusted_Citations"]);
+                        adjustedCitations.push(rowCites);
+                        rawCitations.push(parseInt(row["Citations"]));
+                        // if citations is atleast the count of papers, increment the h-index of that authorPos
+                        // console.log(rowCites); //DEBUG
+                        if (rowCites >= subsetItersArr[authorshipColumn]) {
+                            hIndexArr[authorshipColumn]++;
+                        }
+                    }
+                });
+            });
+
+            // console.log(subsets); //DEBUG
+
+            hFirst = hIndexArr[0];
+            hSecond = hIndexArr[1];
+            hOther = hIndexArr[2];
+            hCO = hIndexArr[3];
+
+            // console.log(hFirst, hSecond, hOther, hCO); //DEBUG
+
+            // // Calculate shIndex as 90% of hFirst, 50% of hSecond, 10% of hOther, and 100% of hCO
+            // // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
+            // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
+
+            adjustedCitations.sort((a, b) => b - a); // Sort in descending order
+            rawCitations.sort((a, b) => b - a); // Sort in descending order
+
+            adjustedCitations.forEach((citations, index) => {
+                if (citations >= index + 1) {
+                    shIndex = index + 1;
+                }
+            });
+
+            rawCitations.forEach((citations, index) => {
+                if (citations <= 0)
+                    zeroCitationPubs++;
+            });
+
+            medianCitationsAdj = adjustedCitations[Math.floor(adjustedCitations.length / 2)];
+            medianCitationsRaw = rawCitations[Math.floor(rawCitations.length / 2)];
+
+            // console.log(shIndex); //DEBUG
+            document.getElementById("sh_index").textContent = DOMPurify.sanitize(`Sh-Index : ${shIndex.toFixed(0)}`);
+            document.getElementById("h_first").textContent = DOMPurify.sanitize(`${hFirst.toString()}`);
+            document.getElementById("h_second").textContent = DOMPurify.sanitize(`${hSecond.toString()}`);
+            document.getElementById("h_other").textContent = DOMPurify.sanitize(`${hOther.toString()}`);
+            document.getElementById("h_co").textContent = DOMPurify.sanitize(`${hCO.toString()}`);
+
+            document.getElementById("medianCitationsAdj").textContent = DOMPurify.sanitize(`${medianCitationsAdj.toString()}`);
+            document.getElementById("medianCitationsRaw").textContent = DOMPurify.sanitize(`${medianCitationsRaw.toString()}`);
+            document.getElementById("zeroCitationPubs").textContent = DOMPurify.sanitize(`${zeroCitationPubs.toString()}`);
+            document.getElementById("retractedPubsCount").textContent = DOMPurify.sanitize(`${retractedPubsCount.toString()}`);
+            document.getElementById("preprintCount").textContent = DOMPurify.sanitize(`${preprintCount.toString()}`);
+            // document.getElementById("considered_pubs").textContent = DOMPurify.sanitize(`${totalPublications - (pub_author_no_match + retractedPubsCount)}`);
+            // document.getElementById("sh_index_info").innerHTML = DOMPurify.sanitize(`(${hCiteProp[0] * 100}% H<sub>First</sub> + ${hCiteProp[1] * 100}% H<sub>Second</sub> + ${hCiteProp[2] * 100}% H<sub>Other</sub> + ${hCiteProp[3] * 100}% H<sub>Co</sub>) - from ${shIndexPubCount} publications`);
+        }
+
+        // async function calculateShIndex() {
+        //     // 1) Parse the TSV into an array of objects
+        //     const parsed = await Papa.parse(tsvContent, {
+        //       delimiter: '\t',
+        //       header: true
+        //     });
+        //     const data = parsed.data;
+          
+        //     // 2) Prepare per-position counters
+        //     const hIndexArr    = [0, 0, 0, 0];
+        //     const subsetIters  = [0, 0, 0, 0];
+        //     const adjustedCites = [];
+        //     const rawCites      = [];
+          
+        //     // 3) Loop over each “author position” column
+        //     filterColumns.forEach((col, pos) => {
+        //       // 3a) Filter to only those papers where this author position is “1”
+        //       const subset = data
+        //         .filter(row =>
+        //           parseInt(row[col], 0) === 1 &&
+        //           !retractedPubsIdxList.includes(parseInt(row.Index))
+        //         )
+        //         // 3b) Sort by adjusted citations descending
+        //         .sort((a, b) =>
+        //           parseInt(b.Adjusted_Citations, 0) - parseInt(a.Adjusted_Citations, 0)
+        //         );
+          
+        //       // 3c) Compute H‐index for this subset
+        //       subset.forEach((row, idx) => {
+        //         const citesAdj = parseInt(row.Adjusted_Citations, 0);
+        //         const citesRaw = parseInt(row.Citations, 0);
+          
+        //         // collect for global Sh‐index later
+        //         adjustedCites.push(citesAdj);
+        //         rawCites.push(citesRaw);
+          
+        //         // increment “papers seen” and test H‐index condition
+        //         subsetIters[pos]++;
+        //         if (citesAdj >= subsetIters[pos]) {
+        //           hIndexArr[pos]++;
+        //         }
+        //       });
+        //     });
+          
+        //     // 4) Store individual H‐indices
+        //     [hFirst, hSecond, hOther, hCO] = hIndexArr;
+          
+        //     // 5) Compute Sh‐Index on the **global** adjusted‐citations list
+        //     adjustedCites.sort((a, b) => b - a);
+        //     let sh = 0;
+        //     adjustedCites.forEach((c, i) => {
+        //       if (c >= i + 1) sh = i + 1;
+        //     });
+        //     shIndex = sh;
+          
+        //     // 6) Other global stats
+        //     rawCites.sort((a, b) => b - a);
+        //     zeroCitationPubs = rawCites.filter(c => c === 0).length;
+        //     medianCitationsAdj = adjustedCites[Math.floor(adjustedCites.length / 2)] || 0;
+        //     medianCitationsRaw = rawCites[Math.floor(rawCites.length / 2)] || 0;
+          
+        //     // 7) Update the DOM
+        //     document.getElementById("sh_index").textContent       = `Sh‑Index: ${shIndex}`;
+        //     document.getElementById("h_first").textContent        = `${hFirst}`;
+        //     document.getElementById("h_second").textContent       = `${hSecond}`;
+        //     document.getElementById("h_other").textContent        = `${hOther}`;
+        //     document.getElementById("h_co").textContent           = `${hCO}`;
+        //     document.getElementById("medianCitationsAdj").textContent = `${medianCitationsAdj}`;
+        //     document.getElementById("medianCitationsRaw").textContent = `${medianCitationsRaw}`;
+        //     document.getElementById("zeroCitationPubs").textContent   = `${zeroCitationPubs}`;
+        //     document.getElementById("retractedPubsCount").textContent = `${retractedPubsCount}`;
+        //     document.getElementById("preprintCount").textContent      = `${preprintCount}`;
+        //   }
+          
 
         // Click "Show More" until all publications are loaded
         const clickShowMoreUntilDisabled = async () => {
             const showMoreButton = document.querySelector('#gsc_bpf_more');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait
 
             if (!showMoreButton) {
-                await new Promise(resolve => setTimeout(resolve, 1500)); // Wait and retry
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait and retry
                 return clickShowMoreUntilDisabled();
             }
 
@@ -5599,7 +5531,24 @@ input::-moz-range-thumb {
                     await new Promise(resolve => setTimeout(resolve, 2000)); // Wait and retry
                     return clickShowMoreUntilDisabled();
                 } else {
-                    scrapePublications();
+                    await scrapePublications();
+                    loadScript(papaparsePath, calculateShIndex, "sh_index_script");
+                    drawPlots();
+                    const endTime = performance.now();
+                    const elapsedMs = endTime - startTime;
+        
+                    // Break into whole units
+                    const hours   = Math.floor(elapsedMs / 3_600_000);
+                    const minutes = Math.floor((elapsedMs % 3_600_000) / 60_000);
+                    const seconds = ((elapsedMs % 60_000) / 1000).toFixed(2);
+        
+                    // Build a human-friendly string
+                    const parts = [];
+                    if (hours   > 0) parts.push(`${hours}h`);
+                    if (minutes > 0) parts.push(`${minutes}m`);
+                    parts.push(`${seconds}s`);
+        
+                    console.info(`Time taken by GScholarLENS: ${parts.join(' ')}`);
                     // console.log(totalPublications, articleCount); //DEBUG
                 }
             } else {
