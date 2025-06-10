@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GScholarLENS",
-  "version": "1.7.7",
+  "version": "1.8.7",
   "description": "Advanced Insights into Google Scholar Profiles.",
   "permissions": [
     "activeTab",
@@ -93,7 +93,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "libs/papaparse.min.js",
         "libs/chart.umd.js",
         "libs/index.umd.js",
         "libs/chart.js",
@@ -236,7 +235,6 @@
         "*://scholar.google.sk/citations*"
       ],
       "js": [
-        "libs/papaparse.min.js",
         "libs/xlsx.full.min.js",
         "libs/chart.umd.js",
         "libs/index.umd.js",
