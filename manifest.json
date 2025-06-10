@@ -97,13 +97,14 @@
         "libs/index.umd.js",
         "libs/chart.js",
         "libs/xlsx.full.min.js",
+        "libs/papaparse.min.js",
         "libs/purify.min.js",
         "libs/dom-to-image-more.min.js",
         "workers/publicationWorker.min.js",
         "workers/retractionWorker.min.js",
         "content/permissions.html",
         "content/permissions.min.js",
-        "content/GScholarLENS.min.js"
+        "content/GScholarLENS.js"
       ],
       "matches": [
         "<all_urls>"
