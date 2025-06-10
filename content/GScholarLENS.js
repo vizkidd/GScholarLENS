@@ -4767,7 +4767,7 @@ input::-moz-range-thumb {
                 publicationData.filter(row => row.author_pos === column.toLowerCase()).sort((a, b) => b.adjustedCitationCount - a.adjustedCitationCount).filter(row=> row.retracted === false).forEach(row => {
                     // console.log(row.index, row.adjustedCitationCount); //DEBUG
                     let authorshipColumn = -1;
-                    console.log(row.author_pos); //DEBUG
+                    // console.log(row.author_pos); //DEBUG
                     switch(row.author_pos){
                         case "first_author":
                         case "second_author":
