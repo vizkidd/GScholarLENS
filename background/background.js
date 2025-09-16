@@ -256,14 +256,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             //     // Wait a bit before checking again
             //     await new Promise(resolve => setTimeout(resolve, 1000 * Math.max(semaphore_queue.length - 1, 1)));
             // }
+            let currentTabId;
+            chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+                if (tabs.length > 0) {
+                    currentTabId = tabs[0].id;
+                    // console.log("Active Tab ID:", currentTabId);
+                }
+            });
+            const tabId = sender.tab?.id;
+            if (tabId === undefined) {
+                // console.warn("Could not determine tab ID — message may not be from a tab.");
+                return;
+            }
             
-            while(await getSemaphoreStatus()) {
+            while(await getSemaphoreStatus() && currentTabId != tabId) {
                 await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));  // Wait for some ms
             }
             await waitForSemaphore();  // Wait for semaphore to be free
             // await new Promise(resolve => setTimeout(resolve, 4000));  // Wait for 4 seconds
             await getSemaphore();
-            processing_tab = sender.tab.id; //semaphore_queue.shift();  // Remove the first tab ID from the queue
+            while (processing_tab != null) {
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));  // Wait for some ms
+                if (!await getSemaphoreStatus())
+                    processing_tab = null;
+            }
+            processing_tab = tabId; //semaphore_queue.shift();  // Remove the first tab ID from the queue
             sendResponse({ status: 'Semaphore acquired' });
         })();
     } else if (request.type === 'release_semaphore') {

@@ -162,15 +162,18 @@ async function openPopupWindow(url) {
 
 async function releaseSemaphoreAndReload() {
     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
+        if(resp)
+            console.log(resp?.status);
         window.location.reload();
+        // if(resp)
         return true;
     });
 }
 
 async function releaseSemaphore() {
     chrome.runtime.sendMessage({ type: 'release_semaphore' }, resp => {
-        console.log(resp.status);
+        if(resp)
+            console.log(resp?.status);
         return true;
     });
 }
@@ -1684,6 +1687,55 @@ input::-moz-range-thumb {
     white-space: nowrap;
     transform: translateX(-50%) scale(1/1.15); /* Counteract parent scale */
 }
+
+/*Stats table*/
+
+.metrics_table_container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 10px;
+    /*font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;*/
+    font-size: 14px;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+}
+
+.metrics_table_container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.metrics_table_container th,
+.metrics_table_container td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eaeaea;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.metrics_table_container th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+    color: #333;
+}
+
+.metrics_table_container td {
+    text-align: center;
+    color: #444;
+}
+
+.metrics_table_container tr:nth-child(even) {
+    background-color: #fcfcfc;
+}
+
+.metrics_table_container tr:hover {
+    background-color: #f1f7ff;
+    transition: background-color 0.2s ease-in-out;
+}
+
             `;
             document.head.appendChild(style);
             //SLIDER style - END
@@ -1707,6 +1759,8 @@ input::-moz-range-thumb {
                             <div style="text-align: center;">
                                 <div class="sharma_index_container">
                                     <h2 id="sh_index">Sh-Index : ${shIndex}</h2>
+                                    <br>
+                                    <h2 id="totalCitationsAdj">Adjusted Citations : ${totalAdjustedCitationCount.toFixed(0)}</h2>
                                 </div>
                             </div>
                             <br>
@@ -1749,10 +1803,6 @@ input::-moz-range-thumb {
                                             <tr>
                                                 <th style="text-align: left;"><b>Publications Not Counted:</b></th>
                                                 <td id="ignored_pubs" style="text-align: center;">${pub_author_no_match}</td>
-                                            </tr>
-                                            <tr>
-                                                <th style="text-align: left;"><b>Total - Adjusted Citations:</b></th>
-                                                <td id="totalCitationsAdj" style="text-align: center;">${totalAdjustedCitationCount}</td>
                                             </tr>
                                             <tr>
                                                 <th style="text-align: left;"><b>Median - Raw Citations:</b></th>
@@ -3989,7 +4039,7 @@ input::-moz-range-thumb {
                                 publicationData[data.publication.index].extended_scrape = true;
                                 return;
                             }
-                            if (!data.authorFound && data.extended_scrape) {
+                            if (!publicationData[data.publication.index].authorFound && publicationData[data.publication.index].extended_scrape) {
                                 extended_scrape = true;
                                 publicationData[data.publication.index].extended_scrape = true;
                                 // console.log(publicationData[data.publication.index].index,publicationData[data.publication.index].title,publicationData[data.publication.index].authors);//DEBUG
@@ -3997,26 +4047,26 @@ input::-moz-range-thumb {
                             }
 
 
-                            publicationProgress += 1;
-                            updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
-                            await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
-                            // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
+                            // publicationProgress += 1;
+                            // updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                            // await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
+                            // // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
 
-                            processedPubsIdx.add(data.publication.index);
+                            // processedPubsIdx.add(data.publication.index);
+
+                            // if (data.publication.year.toString().trim().length === 0) {
+                            //     pub_no_year += 1;
+                            // }
+
+                            // if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                            //     yearwiseData.get(data.publication.year).set("total_publications", 0);
+                            // }
+                            // yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
 
 
-                            if (data.publication.year.toString().trim().length === 0) {
-                                pub_no_year += 1;
-                            }
-
-                            if (!yearwiseData.get(data.publication.year).has("total_publications")) {
-                                yearwiseData.get(data.publication.year).set("total_publications", 0);
-                            }
-                            yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
-
-
-                            let citationWeight = 0;
-                            let author_pos_string = "0\t0\t0\t0";
+                            // let citationWeight = 0;
+                            // let author_pos_string = "0\t0\t0\t0";
+                            // console.log(data.publication.author_pos);
                             // switch (publicationData[pub_idx].author_pos) {
                             switch (data.publication.author_pos) {
                                 case "first_author":
@@ -4051,10 +4101,33 @@ input::-moz-range-thumb {
                                 default:
                                     //Author not found
                                     //   console.warn("INITIAL: ",data); // DEBUG    
+                                    extended_scrape = true;
+                                    publicationData[data.publication.index].extended_scrape = true;
+                                    publicationData[data.publication.index].authorFound = false;
+                                    return;
                                     break;
                             }
                             publicationData[data.publication.index].extended_scrape = false;
-                            tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
+                            tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${publicationData[data.publication.index].author_pos_string}\n`; // Add each publication in a new row
+
+                            // console.log(`${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`); //DEBUG
+
+                            publicationProgress += 1;
+                            updateLoadingBar("publication_progress", (publicationProgress / totalPublications) * 100, "Processing Publications (" + publicationProgress + "): ");
+                            await new Promise(r => setTimeout(r, 150));  // Allow other tasks to run
+                            // console.log("Author Pos: "+data.publication.author_pos + " IDX: " + data.publication.index); //DEBUG
+
+                            processedPubsIdx.add(data.publication.index);
+
+                            if (data.publication.year.toString().trim().length === 0) {
+                                pub_no_year += 1;
+                            }
+
+                            if (!yearwiseData.get(data.publication.year).has("total_publications")) {
+                                yearwiseData.get(data.publication.year).set("total_publications", 0);
+                            }
+                            yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
+
 
                         }
                         if (data.type === 'done') {
@@ -4209,7 +4282,9 @@ input::-moz-range-thumb {
                                 }
                                 yearwiseData.get(data.publication.year).set("total_publications", yearwiseData.get(data.publication.year).get("total_publications") + 1);
 
-                                let author_pos_string = "0\t0\t0\t0";
+                                // let author_pos_string = "0\t0\t0\t0";
+
+                                // console.log(data.publication.author_pos);
 
                                 switch (data.publication.author_pos) {
                                     case "first_author":
@@ -4250,7 +4325,9 @@ input::-moz-range-thumb {
                                 }
 
                                 // console.log(data.publication.journalRanking); //DEBUG
-                                tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${author_pos_string}\n`; // Add each publication in a new row
+                                tsvContent += `${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${publicationData[data.publication.index].author_pos_string}\n`; // Add each publication in a new row
+
+                                // console.log(`${data.publication.index}\t${data.publication.title}\t${data.publication.authors}\t${data.publication.authors.includes("...") ? `${data.publication.total_authors - 1}+` : data.publication.total_authors}\t${data.publication.year}\t${data.publication.citations}\t${publicationData[data.publication.index].adjustedCitationCount}\t${publicationData[data.publication.index].citationWeight}\t${data.publication.journalTitle}\t${data.publication.journalRanking}\t${data.publication.impact_factor}\t${data.publication.considered}\t${publicationData[data.publication.index].author_pos_string}\n`);
                             }
                             if (data.type === 'done') {
                                 authorNamesConsidered = [...authorNamesConsidered, ...data.authorNamesConsidered];
@@ -4755,7 +4832,7 @@ input::-moz-range-thumb {
             // });
 
             const adjustedCitations = [];
-            // const rawCitations = [];
+            const rawCitations = [];
             // NONE OF THE DATAFRAME JS packages work due to unsafe eval() or Function() calls :( which is intolerated by CSP
 
             // console.log(yearwiseData); //DEBUG
@@ -4769,48 +4846,74 @@ input::-moz-range-thumb {
             //     );
             // }
             //this prevents randomness - dont ask my how but that is how it is
-            // publicationData.sort((a, b) => b.adjustedCitationCount - a.adjustedCitationCount); // Sort publications in descending
-            publicationData.sort((a, b) => b.citations - a.citations); // Sort publications in descending
+            publicationData.sort((a, b) => parseFloat(b.adjustedCitationCount) - parseFloat(a.adjustedCitationCount)); // Sort publications in descending
+            // publicationData.sort((a, b) => b.citations - a.citations); // Sort publications in descending
 
+            // console.log(publicationData.length); //DEBUG
             // const subsets = new Map();
-            filterColumns.forEach((column, index) => {
-                // subsets.set(column, subsetJSONData(publicationData, column));
-                // console.log(publicationData.filter(row => row.author_pos === column.toLowerCase())); //DEBUG
-                // subsets.set(column, publicationData.filter(row => row.author_pos === column.toLowerCase()));
-                publicationData.filter(row => row.author_pos === column.toLowerCase()).sort((a, b) => b.adjustedCitationCount - a.adjustedCitationCount).filter(row => row.retracted === false).forEach(row => {
-                    // console.log(row.index, row.adjustedCitationCount); //DEBUG
-                    let authorshipColumn = -1;
-                    // console.log(row.author_pos); //DEBUG
-                    switch (row.author_pos) {
-                        case "first_author":
-                        case "second_author":
-                        case "co_author":
-                        case "corresponding_author":
-                            authorshipColumn = index;
-                            break;
-                        default:
-                            authorshipColumn = -1;
-                            break;
-                    }
+            // filterColumns.forEach((column, index) => {
+            //     // subsets.set(column, subsetJSONData(publicationData, column));
+            //     // console.log(publicationData.filter(row => row.author_pos === column.toLowerCase())); //DEBUG
+            //     // subsets.set(column, publicationData.filter(row => row.author_pos === column.toLowerCase()));
+            //     publicationData.filter(row => row.author_pos === column.toLowerCase()).sort((a, b) => parseFloat(b.adjustedCitationCount) - parseFloat(a.adjustedCitationCount)).filter(row => row.retracted === false).forEach(row => {
+            //         // console.log(row.index, row.adjustedCitationCount); //DEBUG
+            //         let authorshipColumn = -1;
+            //         // console.log(row.author_pos); //DEBUG
+            //         switch (row.author_pos) {
+            //             case "first_author":
+            //             case "second_author":
+            //             case "co_author":
+            //             case "corresponding_author":
+            //                 authorshipColumn = index;
+            //                 break;
+            //             default:
+            //                 authorshipColumn = -1;
+            //                 break;
+            //         }
 
-                    // console.log(authorshipColumnIdx); //DEBUG
-                    if (authorshipColumn >= 0) {
-                        subsetItersArr[authorshipColumn]++;
-                        // const rowCites = parseInt(row["Citations"]);
-                        // const rowCites = parseInt(row["Citations"]) * hCiteProp[authorshipColumn]; // Multiply by citation proportion
-                        // const rowCites = parseInt(row["Adjusted_Citations"]);
-                        const rowCites = row.adjustedCitationCount;
-                        adjustedCitations.push(rowCites);
-                        // // rawCitations.push(parseInt(row["Citations"]));
-                        // rawCitations.push(row.citations);
-                        // if citations is atleast the count of papers, increment the h-index of that authorPos
-                        // console.log(rowCites); //DEBUG
-                        if (rowCites >= subsetItersArr[authorshipColumn]) {
-                            hIndexArr[authorshipColumn]++;
-                        }
+            //         // console.log(authorshipColumnIdx); //DEBUG
+            //         if (authorshipColumn >= 0) {
+            //             subsetItersArr[authorshipColumn]++;
+            //             // const rowCites = parseInt(row["Citations"]);
+            //             // const rowCites = parseInt(row["Citations"]) * hCiteProp[authorshipColumn]; // Multiply by citation proportion
+            //             // const rowCites = parseInt(row["Adjusted_Citations"]);
+            //             const rowCites = row.adjustedCitationCount;
+            //             adjustedCitations.push(rowCites);
+            //             // // rawCitations.push(parseInt(row["Citations"]));
+            //             rawCitations.push(row.citations);
+            //             // if citations is atleast the count of papers, increment the h-index of that authorPos
+            //             // console.log(rowCites); //DEBUG
+            //             if (rowCites >= subsetItersArr[authorshipColumn]) {
+            //                 hIndexArr[authorshipColumn]++;
+            //             }
+            //         }
+            //     });
+            // })
+
+            const validAuthorPositions = ["first_author", "second_author", "co_author", "corresponding_author"];
+
+            publicationData.forEach(row => {
+                // Skip retracted publications
+                if (row.retracted) return;
+
+                // Normalize and validate author position
+                const pos = row.author_pos?.toLowerCase();
+                const authorIndex = filterColumns.findIndex(col => col.toLowerCase() === pos);
+
+                if (authorIndex >= 0 && validAuthorPositions.includes(pos)) {
+                    subsetItersArr[authorIndex]++;
+
+                    const rowCites = parseFloat(row.adjustedCitationCount || 0);
+                    adjustedCitations.push(rowCites);
+
+                    const rawCites = parseFloat(row.citations || 0);
+                    rawCitations.push(rawCites);
+
+                    if (rowCites >= subsetItersArr[authorIndex]) {
+                        hIndexArr[authorIndex]++;
                     }
-                });
-            })
+                }
+            });
 
             // // console.log(retractedPubsIdxList); //DEBUG
             // console.log(subsets); //DEBUG
@@ -4871,8 +4974,8 @@ input::-moz-range-thumb {
             // // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
             // shIndex = 0.9 * hFirst + 0.5 * hSecond + 0.1 * hOther + 1.0 * hCO;
 
-            adjustedCitations.sort((a, b) => b - a); // Sort in descending order
-            // rawCitations.sort((a, b) => b - a); // Sort in descending order
+            adjustedCitations.sort((a, b) => parseFloat(b) - parseFloat(a)); // Sort in descending order
+            rawCitations.sort((a, b) => parseInt(b) - parseInt(a)); // Sort in descending order
 
             // console.log(adjustedCitations); //DEBUG
             // console.log(rawCitations); //DEBUG
@@ -4906,13 +5009,17 @@ input::-moz-range-thumb {
             totalAdjustedCitationCount = adjustedCitationCount[0] + adjustedCitationCount[1] + adjustedCitationCount[2] + adjustedCitationCount[3];
             // console.log(shIndex); //DEBUG
             document.getElementById("sh_index").textContent = DOMPurify.sanitize(`Sh-Index : ${shIndex.toFixed(0)}`);
+            document.getElementById("totalCitationsAdj").textContent = DOMPurify.sanitize(`Adjusted Citations : ${totalAdjustedCitationCount.toFixed(0)}`); //DOMPurify.sanitize(`${totalAdjustedCitationCount.toString()}`);
             document.getElementById("h_first").textContent = DOMPurify.sanitize(`${hFirst.toString()}`);
             document.getElementById("h_second").textContent = DOMPurify.sanitize(`${hSecond.toString()}`);
             document.getElementById("h_other").textContent = DOMPurify.sanitize(`${hOther.toString()}`);
             document.getElementById("h_co").textContent = DOMPurify.sanitize(`${hCO.toString()}`);
 
-            document.getElementById("totalCitationsAdj").textContent = DOMPurify.sanitize(`${totalAdjustedCitationCount.toString()}`);
-            document.getElementById("medianCitationsAdj").textContent = DOMPurify.sanitize(`${medianCitationsAdj.toString()}`);
+            // console.log(adjustedCitations); //DEBUG
+            // console.log(rawCitations); //DEBUG
+            // console.log(medianCitationsAdj); //DEBUG
+
+            document.getElementById("medianCitationsAdj").textContent = DOMPurify.sanitize(`${medianCitationsAdj.toFixed(2)}`);
             document.getElementById("medianCitationsRaw").textContent = DOMPurify.sanitize(`${medianCitationsRaw.toString()}`);
             document.getElementById("zeroCitationPubs").textContent = DOMPurify.sanitize(`${zeroCitationPubs.toString()}`);
             document.getElementById("retractedPubsCount").textContent = DOMPurify.sanitize(`${retractedPubsCount.toString()}`);
@@ -4974,7 +5081,8 @@ input::-moz-range-thumb {
         chrome.runtime.sendMessage({ type: 'get_semaphore' }, (response) => {
             try {
                 //Wait for semaphore, update loading bar, click 'show more' to expand publications table/list and scrape publications
-                console.log(response.status);  // Should log "Semaphore acquired" once acquired
+                if(response)
+                    console.log(response?.status);  // Should log "Semaphore acquired" once acquired
                 updateLoadingBar("main", -1, "Expanding Publications List...", true);
                 const currentTabURL = window.location.href.toString();
                 fetch(currentTabURL).then((captchaTest) => {
